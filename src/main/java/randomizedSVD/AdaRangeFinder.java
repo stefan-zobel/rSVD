@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Stefan Zobel
+ * Copyright 2020, 2021 Stefan Zobel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,8 @@ import net.jamu.matrix.MatrixD;
  */
 public class AdaRangeFinder {
 
+    /** The IEEE 754 machine epsilon from Cephes: (2^-53) */
+    private static final double MACH_EPS_DBL = 1.11022302462515654042e-16;
     private static final int r = 10;
     private static final double BOUND = 1.0 / (10.0 * Math.sqrt(2.0 / Math.PI));
 
@@ -68,6 +70,10 @@ public class AdaRangeFinder {
 
         MatrixD y = vectors.get(0);
         double norm = norm(y);
+        if (norm <= MACH_EPS_DBL) {
+            return null;
+        }
+
         MatrixD q = Matrices.sameDimD(y);
         q = y.scale(1.0 / norm, q);
 
@@ -83,6 +89,9 @@ public class AdaRangeFinder {
             y = x.times(y);
 
             norm = norm(y);
+            if (norm <= MACH_EPS_DBL) {
+                break;
+            }
             q = y.scale(1.0 / norm, q);
             Q = Q.appendColumn(q);
 
