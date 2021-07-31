@@ -10,8 +10,8 @@ import org.junit.Test;
 
 public class AdaRangeFinderTest {
 
-    private static final int m = 150;
-    private static final int n = 100;
+    private static final int m = 220;
+    private static final int n = 150;
 
     @Test
     public void testNaturalNumbers() {
@@ -44,7 +44,7 @@ public class AdaRangeFinderTest {
     private MatrixD checkFactorization(MatrixD Q, MatrixD A) {
         MatrixD B = Q.transpose().times(A);
         MatrixD A_approx = Q.times(B);
-        boolean equal = Matrices.approxEqual(A_approx, A);
+        boolean equal = Matrices.approxEqual(A_approx, A, 1.0e-7);
         assertTrue("A_approx and A should be approximately equal", equal);
         return B;
     }
@@ -53,17 +53,15 @@ public class AdaRangeFinderTest {
         SvdD svdReduced = B.svd(true);
         MatrixD U_lowrank = Q.times(svdReduced.getU());
         // U
-        MatrixD U_approx = Matrices.createD(m, n);
-        U_approx.setSubmatrixInplace(0, 0, U_lowrank, 0, 0, U_lowrank.endRow(), U_lowrank.endCol());
+        MatrixD U_approx = Matrices.embed(m, n, U_lowrank);
         // Sigma
         MatrixD tmp = Matrices.diagD(svdReduced.getS());
-        MatrixD Sigma = Matrices.createD(n, n);
-        Sigma = Sigma.setSubmatrixInplace(0, 0, tmp, 0, 0, tmp.endRow(), tmp.endCol());
+        MatrixD Sigma = Matrices.embed(n, n, tmp);
         // Vt
         MatrixD Vt = svdReduced.getVt();
         // A_approx
         MatrixD A_approx = U_approx.timesTimes(Sigma, Vt);
-        boolean equal = Matrices.approxEqual(A_approx, A_expected);
+        boolean equal = Matrices.approxEqual(A_approx, A_expected, 1.0e-7);
         assertTrue("A and reconstruction of A should be approximately equal", equal);
     }
 }
