@@ -12,6 +12,9 @@ public class AdaRangeFinderTest {
 
     private static final int m = 220;
     private static final int n = 150;
+    // the adaptive algorithm has quite good tolerance even for matrices which
+    // are not that large
+    private static final double TOLERANCE = 1.0e-7;
 
     @Test
     public void testNaturalNumbers() {
@@ -44,7 +47,7 @@ public class AdaRangeFinderTest {
     private MatrixD checkFactorization(MatrixD Q, MatrixD A) {
         MatrixD B = Q.transpose().times(A);
         MatrixD A_approx = Q.times(B);
-        boolean equal = Matrices.approxEqual(A_approx, A, 1.0e-7);
+        boolean equal = Matrices.approxEqual(A_approx, A, TOLERANCE);
         assertTrue("A_approx and A should be approximately equal", equal);
         return B;
     }
@@ -61,7 +64,7 @@ public class AdaRangeFinderTest {
         MatrixD Vt = svdReduced.getVt();
         // A_approx
         MatrixD A_approx = U_approx.timesTimes(Sigma, Vt);
-        boolean equal = Matrices.approxEqual(A_approx, A_expected, 1.0e-7);
+        boolean equal = Matrices.approxEqual(A_approx, A_expected, TOLERANCE);
         assertTrue("A and reconstruction of A should be approximately equal", equal);
     }
 }
