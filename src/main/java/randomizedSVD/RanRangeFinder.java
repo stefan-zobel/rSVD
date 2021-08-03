@@ -34,6 +34,7 @@ public class RanRangeFinder {
     private static final int P = 10;
 
     private final MatrixD A;
+    private final int m;
     private final int n;
     private final int targetRank;
 
@@ -42,15 +43,23 @@ public class RanRangeFinder {
             throw new IllegalArgumentException("negative target rank: " + estimatedRank);
         }
         this.A = Objects.requireNonNull(A);
+        this.m = A.numRows();
         this.n = A.numColumns();
         this.targetRank = estimatedRank;
     }
 
     public MatrixD computeQ() {
-        MatrixD Omega = Matrices.randomNormalD(n, targetRank + P);
-        MatrixD Y = A.times(Omega);
-        MatrixD Q = decompose(Y);
-        return Q;
+        if (m >= n) {
+            MatrixD Omega = Matrices.randomNormalD(n, targetRank + P);
+            MatrixD Y = A.times(Omega);
+            MatrixD Q = decompose(Y);
+            return Q;
+        } else {
+            MatrixD Omega = Matrices.randomNormalD(targetRank + P, m);
+            MatrixD Y = Omega.times(A).transpose();
+            MatrixD Q = decompose(Y);
+            return Q;
+        }
     }
 
     private MatrixD decompose(MatrixD Y) {
