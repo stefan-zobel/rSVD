@@ -75,7 +75,7 @@ public class RanPowerIteration {
         B = B.times(A);
         MatrixD Y = null;
         MatrixD Q = null;
-        if (A.numRows() >= A.numColumns()) {
+        if (m >= n) {
             MatrixD Omega = Matrices.randomNormalD(n, targetRank + P);
             Y = B.times(Omega);
             Q = decompose(Y);
