@@ -35,6 +35,7 @@ public class RanSubspaceIteration {
     private static final int P = 10;
 
     private final MatrixD A;
+    private final int m;
     private final int n;
     private final int targetRank;
     private final int q;
@@ -47,6 +48,7 @@ public class RanSubspaceIteration {
             throw new IllegalArgumentException("q must be at least 1. q = " + q);
         }
         this.A = Objects.requireNonNull(A);
+        this.m = A.numRows();
         this.n = A.numColumns();
         this.targetRank = estimatedRank;
         this.q = q;
@@ -54,15 +56,33 @@ public class RanSubspaceIteration {
 
     public MatrixD computeQ() {
         MatrixD AT = A.transpose();
-        MatrixD Omega = Matrices.randomNormalD(n, targetRank + P);
-        MatrixD Y = A.times(Omega);
+        MatrixD Omega = null;
+        MatrixD Y = null;
+        if (m >= n) {
+            Omega = Matrices.randomNormalD(n, targetRank + P);
+            Y = A.times(Omega);
+        } else {
+            Omega = Matrices.randomNormalD(targetRank + P, m);
+            Y = Omega.times(A).transpose();
+        }
         MatrixD Q = decompose(Y);
 
-        for (int j = 1; j < q; ++j) {
-            Y = AT.times(Q);
-            Q = decompose(Y);
-            Y = A.times(Q);
-            Q = decompose(Y);
+        if (m >= n) {
+            for (int j = 1; j < q; ++j) {
+                Y = AT.times(Q);
+                Q = decompose(Y);
+                Y = A.times(Q);
+                Q = decompose(Y);
+            }
+        } else {
+            // XXX ???
+            //throw new UnsupportedOperationException("m < k not yet implemented");
+            for (int j = 1; j < q; ++j) {
+                Y = A.times(Q);
+                Q = decompose(Y);
+                Y = AT.times(Q);
+                Q = decompose(Y);
+            }
         }
 
         return Q;
