@@ -73,19 +73,11 @@ public class RanPowerIteration {
         B = B.times(A);
         MatrixD Omega = Matrices.randomNormalD(n, targetRank + P);
         MatrixD Y = B.times(Omega);
-        MatrixD Q = qrDecompose(Y);
+        MatrixD Q = decompose(Y);
         return Q;
     }
 
-    private MatrixD qrDecompose(MatrixD Y) {
-        MatrixD Q = null;
-        if (Y.numRows() < Y.numColumns()) {
-            Y = Y.transpose();
-            MatrixD RT = Y.qrd().getR();
-            Q = RT.transpose();
-        } else {
-            Q = Y.qrd().getQ();
-        }
-        return Q;
+    private MatrixD decompose(MatrixD Y) {
+        return Y.qrd().getQ();
     }
 }

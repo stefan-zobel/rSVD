@@ -56,24 +56,22 @@ public class RanSubspaceIteration {
         MatrixD AT = A.transpose();
         MatrixD Omega = Matrices.randomNormalD(n, targetRank + P);
         MatrixD Y = A.times(Omega);
-        MatrixD Q = qrDecompose(Y);
+        MatrixD Q = decompose(Y);
 
         for (int j = 1; j < q; ++j) {
             Y = AT.times(Q);
-            Q = qrDecompose(Y);
+            Q = decompose(Y);
             Y = A.times(Q);
-            Q = qrDecompose(Y);
+            Q = decompose(Y);
         }
 
         return Q;
     }
 
-    private MatrixD qrDecompose(MatrixD Y) {
+    private MatrixD decompose(MatrixD Y) {
         MatrixD Q = null;
         if (Y.numRows() < Y.numColumns()) {
-            Y = Y.transpose();
-            MatrixD RT = Y.qrd().getR();
-            Q = RT.transpose();
+            Q = Y.lud().getPL();
         } else {
             Q = Y.qrd().getQ();
         }
