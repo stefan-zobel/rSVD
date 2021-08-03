@@ -35,6 +35,7 @@ public class RanPowerIteration {
     private static final int P = 10;
 
     private final MatrixD A;
+    private final int m;
     private final int n;
     private final int targetRank;
     private final int q;
@@ -47,6 +48,7 @@ public class RanPowerIteration {
             throw new IllegalArgumentException("q must be at least 1. q = " + q);
         }
         this.A = Objects.requireNonNull(A);
+        this.m = A.numRows();
         this.n = A.numColumns();
         this.targetRank = estimatedRank;
         this.q = q;
@@ -71,9 +73,17 @@ public class RanPowerIteration {
         }
         // (m x m) * (m x n) = (m x n)
         B = B.times(A);
-        MatrixD Omega = Matrices.randomNormalD(n, targetRank + P);
-        MatrixD Y = B.times(Omega);
-        MatrixD Q = decompose(Y);
+        MatrixD Y = null;
+        MatrixD Q = null;
+        if (A.numRows() >= A.numColumns()) {
+            MatrixD Omega = Matrices.randomNormalD(n, targetRank + P);
+            Y = B.times(Omega);
+            Q = decompose(Y);
+        } else {
+            MatrixD Omega = Matrices.randomNormalD(targetRank + P, m);
+            Y = Omega.times(B).transpose();
+            Q = decompose(Y);
+        }
         return Q;
     }
 
