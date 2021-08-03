@@ -19,7 +19,6 @@ import java.util.Objects;
 
 import net.jamu.matrix.Matrices;
 import net.jamu.matrix.MatrixD;
-import net.jamu.matrix.QrdD;
 
 /**
  * Subspace iteration scheme for the fixed-rank problem. For matrices whose
@@ -57,8 +56,7 @@ public class RanSubspaceIteration {
         MatrixD AT = A.transpose();
         MatrixD Omega = Matrices.randomNormalD(n, targetRank + P);
         MatrixD Y = A.times(Omega);
-        QrdD qr = Y.qrd();
-        MatrixD Q = qr.getQ();
+        MatrixD Q = qrDecompose(Y);
 
         for (int j = 1; j < q; ++j) {
             Y = AT.times(Q);

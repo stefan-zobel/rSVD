@@ -19,7 +19,6 @@ import java.util.Objects;
 
 import net.jamu.matrix.Matrices;
 import net.jamu.matrix.MatrixD;
-import net.jamu.matrix.QrdD;
 
 /**
  * Power iteration scheme for the fixed-rank problem. For matrices whose
@@ -74,8 +73,19 @@ public class RanPowerIteration {
         B = B.times(A);
         MatrixD Omega = Matrices.randomNormalD(n, targetRank + P);
         MatrixD Y = B.times(Omega);
-        QrdD qr = Y.qrd();
-        MatrixD Q = qr.getQ();
+        MatrixD Q = qrDecompose(Y);
+        return Q;
+    }
+
+    private MatrixD qrDecompose(MatrixD Y) {
+        MatrixD Q = null;
+        if (Y.numRows() < Y.numColumns()) {
+            Y = Y.transpose();
+            MatrixD RT = Y.qrd().getR();
+            Q = RT.transpose();
+        } else {
+            Q = Y.qrd().getQ();
+        }
         return Q;
     }
 }
