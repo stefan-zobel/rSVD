@@ -24,23 +24,26 @@ import net.jamu.matrix.SvdD;
 public final class Checks {
 
     public static MatrixD checkFactorization(MatrixD Q, MatrixD A, double tolerance) {
+        MatrixD A_approx = null;
+        MatrixD B = null;
+
         if (A.numRows() >= A.numColumns()) { // m >= n
-            MatrixD B = Q.transpose().times(A);
-            MatrixD A_approx = Q.times(B);
-            boolean equal = Matrices.approxEqual(A_approx, A, tolerance);
-            assertTrue("A_approx and A should be approximately equal", equal);
-            return B;
+            B = Q.transpose().times(A);
+            A_approx = Q.times(B);
         } else { // m < n
-            MatrixD B = A.times(Q);
-            MatrixD A_approx = B.times(Q.transpose());
-            boolean equal = Matrices.approxEqual(A_approx, A, tolerance);
-            assertTrue("A_approx and A should be approximately equal", equal);
-            return B;
+            B = A.times(Q);
+            A_approx = B.times(Q.transpose());
         }
+
+        boolean equal = Matrices.approxEqual(A_approx, A, tolerance);
+        assertTrue("A_approx and A should be approximately equal", equal);
+        return B;
     }
 
     public static void checkSVD(MatrixD B, MatrixD Q, MatrixD A_expected, double tolerance) {
+        MatrixD A_approx = null;
         SvdD svdReduced = B.svd(true);
+
         if (A_expected.numRows() >= A_expected.numColumns()) { // m >= n
             // U
             MatrixD U_lowrank = Q.times(svdReduced.getU());
@@ -51,9 +54,7 @@ public final class Checks {
             // Vt
             MatrixD Vt = svdReduced.getVt();
             // A_approx
-            MatrixD A_approx = U_approx.timesTimes(Sigma, Vt);
-            boolean equal = Matrices.approxEqual(A_approx, A_expected, tolerance);
-            assertTrue("A and reconstruction of A should be approximately equal", equal);
+            A_approx = U_approx.timesTimes(Sigma, Vt);
         } else { // m < n
             // U
             MatrixD U_lowrank = svdReduced.getU();
@@ -65,9 +66,10 @@ public final class Checks {
             MatrixD Vt = svdReduced.getVt().times(Q.transpose());
             Vt = Matrices.embed(A_expected.numColumns(), A_expected.numColumns(), Vt);
             // A_approx
-            MatrixD A_approx = U_approx.timesTimes(Sigma, Vt);
-            boolean equal = Matrices.approxEqual(A_approx, A_expected, tolerance);
-            assertTrue("A and reconstruction of A should be approximately equal", equal);
+            A_approx = U_approx.timesTimes(Sigma, Vt);
         }
+
+        boolean equal = Matrices.approxEqual(A_approx, A_expected, tolerance);
+        assertTrue("A and reconstruction of A should be approximately equal", equal);
     }
 }
