@@ -24,7 +24,7 @@ import net.jamu.matrix.MatrixD;
 import net.jamu.matrix.SvdD;
 import old.math.rsvd.ApproximateBasis2;
 
-public class ApproximateBasisTest {
+public class ApproximateBasis2Test {
 
     private static final double TOLERANCE = 1.0e-8;
 

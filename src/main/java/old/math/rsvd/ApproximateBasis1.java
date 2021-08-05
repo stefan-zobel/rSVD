@@ -18,7 +18,7 @@ package old.math.rsvd;
 import net.jamu.matrix.Matrices;
 import net.jamu.matrix.MatrixD;
 
-public final class ApproximateBasis {
+public final class ApproximateBasis1 {
 
     // Oversampling parameter
     private static final int P = 5;
@@ -29,7 +29,7 @@ public final class ApproximateBasis {
     private final int targetRank;
     private final boolean transposed;
 
-    public ApproximateBasis(MatrixD A, int estimatedRank) {
+    public ApproximateBasis1(MatrixD A, int estimatedRank) {
         if (estimatedRank < 0) {
             throw new IllegalArgumentException("estimatedRank: " + estimatedRank);
         }
