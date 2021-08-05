@@ -106,6 +106,7 @@ public class ApproximateBasisTest {
     }
 
     private MatrixD checkApproximation(MatrixD Q, MatrixD A, double tolerance) {
+        boolean transpose = A.numRows() < A.numColumns();
         MatrixD QT = Q.transpose();
         MatrixD QQT = Q.times(QT);
         if (QQT.numColumns() < A.numRows()) {
@@ -116,10 +117,10 @@ public class ApproximateBasisTest {
         boolean equal = Matrices.approxEqual(A_approx, A, tolerance);
         assertTrue("A_approx and A should be approximately equal", equal);
 
-        if (QT.numColumns() != A.numRows()) {
-            return A.times(Q);
+        if (transpose) {
+            return QT.times(A);
         }
-        return QT.times(A);
+        return A.times(Q);
     }
 
     private SVD createSVD(MatrixD B, MatrixD A_expected, MatrixD Q, int estimatedRank) {
@@ -132,11 +133,11 @@ public class ApproximateBasisTest {
         MatrixD Vt = svd.getVt();
 
         MatrixD U = null;
-        if (!transpose) {
-            U = U_tilde;
-            Vt = Vt.times(Q.transpose());
-        } else {
+        if (transpose) {
             U = Q.times(U_tilde);
+        } else {
+            U = U_tilde;
+            Vt = Vt.times(Q.transpose());            
         }
 
         if (U.numColumns() > estimatedRank) {
