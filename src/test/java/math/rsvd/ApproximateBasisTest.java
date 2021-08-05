@@ -22,6 +22,7 @@ import org.junit.Test;
 import net.jamu.matrix.Matrices;
 import net.jamu.matrix.MatrixD;
 import net.jamu.matrix.SvdD;
+import old.math.rsvd.ApproximateBasis2;
 
 public class ApproximateBasisTest {
 

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package math.rsvd;
+package old.math.rsvd;
 
 import net.jamu.matrix.Matrices;
 import net.jamu.matrix.MatrixD;
