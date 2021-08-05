@@ -111,7 +111,7 @@ public final class ApproximateBasis {
             Q = AT.times(Q).lud().getPL();
             Q = A.times(Q).lud().getPL();
         }
-        return Q = AT.times(Q).qrd().getQ();
+        return AT.times(Q).qrd().getQ();
     }
 
     private MatrixD getRandomMatrix() {
