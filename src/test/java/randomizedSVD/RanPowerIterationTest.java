@@ -32,7 +32,7 @@ public class RanPowerIterationTest {
     private static final double TOLERANCE = 1.0e-2;
 
     @Test
-    public void testNaturalNumbers() {
+    public void testNaturalNumbersTall() {
         int q = 1;
         // this is really low rank
         int estimatedRank = 2;
@@ -43,7 +43,18 @@ public class RanPowerIterationTest {
     }
 
     @Test
-    public void testRandomNormal() {
+    public void testNaturalNumbersWide() {
+        int q = 1;
+        // this is really low rank
+        int estimatedRank = 2;
+        MatrixD A = Matrices.naturalNumbersD(n, m);
+        MatrixD Q = getQ(A, estimatedRank, q);
+        MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
+        Checks.checkSVD(B, Q, A, TOLERANCE);
+    }
+
+    @Test
+    public void testRandomNormalTall() {
         int q = 3;
         // high rank random noise
         int estimatedRank = Math.min(m, n);
@@ -54,11 +65,33 @@ public class RanPowerIterationTest {
     }
 
     @Test
-    public void testRandomUniform() {
+    public void testRandomNormalWide() {
+        int q = 3;
+        // high rank random noise
+        int estimatedRank = Math.min(m, n);
+        MatrixD A = Matrices.randomNormalD(n, m);
+        MatrixD Q = getQ(A, estimatedRank, q);
+        MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
+        Checks.checkSVD(B, Q, A, TOLERANCE);
+    }
+
+    @Test
+    public void testRandomUniformTall() {
         int q = 2;
         // high rank random noise
         int estimatedRank = Math.min(m, n);
         MatrixD A = Matrices.randomUniformD(m, n);
+        MatrixD Q = getQ(A, estimatedRank, q);
+        MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
+        Checks.checkSVD(B, Q, A, TOLERANCE);
+    }
+
+    @Test
+    public void testRandomUniformWide() {
+        int q = 2;
+        // high rank random noise
+        int estimatedRank = Math.min(m, n);
+        MatrixD A = Matrices.randomUniformD(n, m);
         MatrixD Q = getQ(A, estimatedRank, q);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
         Checks.checkSVD(B, Q, A, TOLERANCE);
