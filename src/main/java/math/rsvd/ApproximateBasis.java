@@ -45,6 +45,7 @@ public final class ApproximateBasis {
         MatrixD[] BQ = computeBQ();
         MatrixD B = BQ[0];
         MatrixD Q = BQ[1];
+        MatrixD QT = BQ[2];
 
         SvdD svd = B.svdEcon();
         MatrixD U_tilde = svd.getU();
@@ -56,7 +57,7 @@ public final class ApproximateBasis {
             U = Q.times(U_tilde);
         } else {
             U = U_tilde;
-            Vt = Vt.times(Q.transpose());
+            Vt = Vt.times(QT);
         }
         return createSVD(U, sigma, Vt);
     }
@@ -81,9 +82,10 @@ public final class ApproximateBasis {
     private MatrixD[] computeBQ() {
         MatrixD Q = computeQ();
         if (transpose) {
-            return new MatrixD[] { Q.transpose().times(A), Q };
+            MatrixD QT = Q.transpose();
+            return new MatrixD[] { QT.times(A), Q, QT };
         }
-        return new MatrixD[] { A.times(Q), Q };
+        return new MatrixD[] { A.times(Q), Q, null };
     }
 
     private MatrixD computeQ() {
