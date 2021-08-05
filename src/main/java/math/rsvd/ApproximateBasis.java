@@ -81,11 +81,11 @@ public final class ApproximateBasis {
 
     private MatrixD[] computeBQ() {
         MatrixD Q = computeQ();
+        MatrixD QT = Q.transpose();
         if (transpose) {
-            MatrixD QT = Q.transpose();
             return new MatrixD[] { QT.times(A), Q, QT };
         }
-        return new MatrixD[] { A.times(Q), Q, null };
+        return new MatrixD[] { A.times(Q), Q, QT };
     }
 
     private MatrixD computeQ() {
