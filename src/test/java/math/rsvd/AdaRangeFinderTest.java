@@ -13,12 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package randomizedSVD;
+package math.rsvd;
 
 import net.jamu.matrix.Matrices;
 import net.jamu.matrix.MatrixD;
+import randomizedSVD.Checks;
 
 import org.junit.Test;
+
+import math.rsvd.AdaRangeFinder;
 
 public class AdaRangeFinderTest {
 
@@ -29,27 +32,51 @@ public class AdaRangeFinderTest {
     private static final double TOLERANCE = 1.0e-7;
 
     @Test
-    public void testNaturalNumbers() {
+    public void testNaturalNumbersTall() {
         MatrixD A = Matrices.naturalNumbersD(m, n);
         MatrixD Q = getQ(A);
-        MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
-        Checks.checkSVD(B, Q, A, TOLERANCE);
+        MatrixD B = Checks.checkFactorization2(Q, A, TOLERANCE);
+        Checks.checkSVD2(B, Q, A, TOLERANCE);
     }
 
     @Test
-    public void testRandomNormal() {
+    public void testNaturalNumbersWide() {
+        MatrixD A = Matrices.naturalNumbersD(n, m);
+        MatrixD Q = getQ(A);
+        MatrixD B = Checks.checkFactorization2(Q, A, TOLERANCE);
+        Checks.checkSVD2(B, Q, A, TOLERANCE);
+    }
+
+    @Test
+    public void testRandomNormalTall() {
         MatrixD A = Matrices.randomNormalD(m, n);
         MatrixD Q = getQ(A);
-        MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
-        Checks.checkSVD(B, Q, A, TOLERANCE);
+        MatrixD B = Checks.checkFactorization2(Q, A, TOLERANCE);
+        Checks.checkSVD2(B, Q, A, TOLERANCE);
     }
 
     @Test
-    public void testRandomUniform() {
+    public void testRandomNormalWide() {
+        MatrixD A = Matrices.randomNormalD(n, m);
+        MatrixD Q = getQ(A);
+        MatrixD B = Checks.checkFactorization2(Q, A, TOLERANCE);
+        Checks.checkSVD2(B, Q, A, TOLERANCE);
+    }
+
+    @Test
+    public void testRandomUniformTall() {
         MatrixD A = Matrices.randomUniformD(m, n);
         MatrixD Q = getQ(A);
-        MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
-        Checks.checkSVD(B, Q, A, TOLERANCE);
+        MatrixD B = Checks.checkFactorization2(Q, A, TOLERANCE);
+        Checks.checkSVD2(B, Q, A, TOLERANCE);
+    }
+
+    @Test
+    public void testRandomUniformWide() {
+        MatrixD A = Matrices.randomUniformD(m, n);
+        MatrixD Q = getQ(A);
+        MatrixD B = Checks.checkFactorization2(Q, A, TOLERANCE);
+        Checks.checkSVD2(B, Q, A, TOLERANCE);
     }
 
     private MatrixD getQ(MatrixD A) {
