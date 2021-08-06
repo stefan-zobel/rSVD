@@ -135,7 +135,7 @@ public final class ApproximateBasis {
             Q = A.mult(Q, C1).lud().getPL();
             Q = AT.mult(Q, C2).lud().getPL();
         }
-        return A.times(Q).qrd().getQ();
+        return A.mult(Q, C1).qrd().getQ();
     }
 
     private MatrixD loopTallSaveAllocations(MatrixD Q, MatrixD AT) {
@@ -157,7 +157,7 @@ public final class ApproximateBasis {
             Q = AT.mult(Q, C1).lud().getPL();
             Q = A.mult(Q, C2).lud().getPL();
         }
-        return AT.times(Q).qrd().getQ();
+        return AT.mult(Q, C1).qrd().getQ();
     }
 
     private MatrixD getRandomMatrix() {
