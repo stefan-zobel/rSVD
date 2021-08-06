@@ -70,9 +70,11 @@ public final class ApproximateBasis {
             Vt = Vt.selectSubmatrix(0, 0, targetRank - 1, Vt.endCol());
         }
         if (U.numRows() > m) {
+            // should never happen
             U = U.selectSubmatrix(0, 0, m - 1, U.endCol());
         }
         if (Vt.numColumns() > n) {
+            // should never happen
             Vt = Vt.selectConsecutiveColumns(0, n - 1);
         }
         MatrixD S = Matrices.diagD(U.numColumns(), Vt.numRows(), sigma);
@@ -91,14 +93,14 @@ public final class ApproximateBasis {
     private MatrixD computeQ() {
         MatrixD Q = getRandomMatrix();
         if (transpose) {
-            Q = loopWide(Q, A.transpose());
+            Q = loopWideSaveAllocations(Q, A.transpose());
         } else {
-            Q = loopTall(Q, A.transpose());
+            Q = loopTallSaveAllocations(Q, A.transpose());
         }
         return Q;
     }
 
-    private MatrixD loopWide(MatrixD Q, MatrixD AT) {
+    protected MatrixD loopWide(MatrixD Q, MatrixD AT) {
         for (int i = 0; i < 4; ++i) {
             Q = A.times(Q).lud().getPL();
             Q = AT.times(Q).lud().getPL();
@@ -106,10 +108,54 @@ public final class ApproximateBasis {
         return A.times(Q).qrd().getQ();
     }
 
-    private MatrixD loopTall(MatrixD Q, MatrixD AT) {
+    protected MatrixD loopTall(MatrixD Q, MatrixD AT) {
         for (int i = 0; i < 4; ++i) {
             Q = AT.times(Q).lud().getPL();
             Q = A.times(Q).lud().getPL();
+        }
+        return AT.times(Q).qrd().getQ();
+    }
+
+    private MatrixD loopWideSaveAllocations(MatrixD Q, MatrixD AT) {
+        MatrixD C1 = Matrices.createD(A.numRows(), Q.numColumns());
+        MatrixD C2 = null;
+
+        Q = A.mult(Q, C1).lud().getPL();
+        if (Q.numColumns() != C1.numColumns()) {
+            C2 = Matrices.createD(AT.numRows(), Q.numColumns());
+        } else {
+            C2 = Matrices.createD(AT.numRows(), C1.numColumns());
+        }
+        Q = AT.mult(Q, C2).lud().getPL();
+        if (Q.numColumns() != C1.numColumns()) {
+            C1 = Matrices.createD(A.numRows(), A.numRows());
+        }
+
+        for (int i = 0; i < 3; ++i) {
+            Q = A.mult(Q, C1).lud().getPL();
+            Q = AT.mult(Q, C2).lud().getPL();
+        }
+        return A.times(Q).qrd().getQ();
+    }
+
+    private MatrixD loopTallSaveAllocations(MatrixD Q, MatrixD AT) {
+        MatrixD C1 = Matrices.createD(AT.numRows(), Q.numColumns());
+        MatrixD C2 = null;
+
+        Q = AT.mult(Q, C1).lud().getPL();
+        if (Q.numColumns() != AT.numRows()) {
+            C2 = Matrices.createD(A.numRows(), Q.numColumns());
+        } else {
+            C2 = Matrices.createD(A.numRows(), AT.numRows());
+        }
+        Q = A.mult(Q, C2).lud().getPL();
+        if (Q.numColumns() != C1.numColumns()) {
+            C1 = Matrices.createD(AT.numRows(), AT.numRows());
+        }
+
+        for (int i = 0; i < 3; ++i) {
+            Q = AT.mult(Q, C1).lud().getPL();
+            Q = A.mult(Q, C2).lud().getPL();
         }
         return AT.times(Q).qrd().getQ();
     }
