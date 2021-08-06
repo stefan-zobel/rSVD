@@ -38,7 +38,7 @@ public final class ApproximateBasis {
         n = A.numColumns();
         transpose = (m < n) ? true : false;
         this.A = A;
-        targetRank = estimatedRank;
+        targetRank = Math.min(estimatedRank, Math.min(m, n));
     }
 
     public SVD computeSVD() {
