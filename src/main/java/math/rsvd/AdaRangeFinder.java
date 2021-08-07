@@ -46,7 +46,8 @@ public class AdaRangeFinder {
     }
 
     private static double norm(MatrixD y) {
-        return y.norm2(); // normF() ?
+        // return y.norm2(); // normF() ?
+        return y.normF(); // norm2() ?
     }
 
     private static double getMax(ArrayList<MatrixD> vectors) {
@@ -66,13 +67,13 @@ public class AdaRangeFinder {
         for (int k = 0; k < r; ++k) {
             vectors.add(A.times(Matrices.randomNormalD(n, 1)));
         }
-        double max = getMax(vectors);
 
         MatrixD y = vectors.get(0);
         double norm = norm(y);
         if (norm <= MACH_EPS_DBL) {
             return null;
         }
+        double max = getMax(vectors);
 
         MatrixD q = Matrices.sameDimD(y);
         q = y.scale(1.0 / norm, q);
@@ -114,8 +115,8 @@ public class AdaRangeFinder {
         for (int i = 0; i < vectors.size() - 1; ++i) {
             MatrixD y = vectors.get(i);
             MatrixD x = qt.times(y);
-            y = y.minus(q.times(x));
-            vectors.set(i, y);
+            MatrixD z = q.times(x);
+            y.addInplace(-1.0, z);
         }
     }
 }
