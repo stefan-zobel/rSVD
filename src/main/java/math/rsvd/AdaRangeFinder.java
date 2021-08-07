@@ -84,7 +84,7 @@ public class AdaRangeFinder {
         // we implicitly set epsilon == 1
         while (max > BOUND) {
 
-            MatrixD x = I.minus(Q.times(Q.transpose()));
+            MatrixD x = I.minus(Q.timesTransposed());
             y = vectors.get(0);
             y = x.times(y);
 
@@ -106,7 +106,7 @@ public class AdaRangeFinder {
     private void shift(ArrayList<MatrixD> vectors, MatrixD q, MatrixD Q) {
         vectors.remove(0);
         MatrixD omega = Matrices.randomNormalD(n, 1);
-        MatrixD I_minus = I.minus(Q.times(Q.transpose()));
+        MatrixD I_minus = I.minus(Q.timesTransposed());
         MatrixD A_times_Omega = A.times(omega);
         MatrixD yr = I_minus.times(A_times_Omega);
         vectors.add(yr);
