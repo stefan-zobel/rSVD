@@ -110,9 +110,11 @@ public class AdaRangeFinder {
         MatrixD A_times_Omega = A.times(omega);
         MatrixD yr = I_minus.times(A_times_Omega);
         vectors.add(yr);
+        MatrixD qt = q.transpose();
         for (int i = 0; i < vectors.size() - 1; ++i) {
             MatrixD y = vectors.get(i);
-            y = y.minus(q.times(q.transpose().times(y)));
+            MatrixD x = qt.times(y);
+            y = y.minus(q.times(x));
             vectors.set(i, y);
         }
     }
