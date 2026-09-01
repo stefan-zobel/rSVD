@@ -22,8 +22,22 @@ import net.jamu.matrix.Matrices;
 import net.jamu.matrix.MatrixD;
 
 /**
- * This should be about twice as fast as my initial (2021-07-29)
- * {@link AdaRangeFinder} implementation (but it also needs more memory).
+ * Adaptive Randomized Range Finder, a variant of {@link AdaRangeFinder} which
+ * draws its test vectors from the uniform distribution {@code U(-1, 1)} instead
+ * of the standard normal distribution {@code N(0, 1)}.
+ * <p>
+ * The price is a weaker stopping criterion: the expected
+ * squared norm of a test vector is only {@code ||A||_F^2 / 3}, so the effective
+ * accuracy target is about {@code sqrt(3)} times the nominal {@code epsilon}.
+ * <p>
+ * Apart from the sampling distribution this class is identical to
+ * {@link AdaRangeFinder}; in particular both apply the orthogonal projector
+ * {@code I - Q * Q'} in the matrix-free form {@code y - Q * (Q' * y)} and
+ * therefore have the same time and space requirements.
+ * <p>
+ * Algorithm 4.2 from Nathan Halko, Per-Gunnar Martinsson, and Joel A Tropp.
+ * Finding structure with randomness: Probabilistic algorithms for constructing
+ * approximate matrix decompositions. SIAM review, 53(2):217-288, 2011.
  */
 public class AdaRangeFinderFast {
 
@@ -40,9 +54,6 @@ public class AdaRangeFinderFast {
     private static final double BOUND_FACTOR = 1.0 / (10.0 * Math.sqrt(2.0 / Math.PI));
 
     private final MatrixD A;
-    private final MatrixD I;
-    private final MatrixD TEMP1;
-    private final MatrixD TEMP2;
     private final MatrixD TEMP3;
     private final int n;
     /** epsilon * ||A||_F / (10 * sqrt(2 / pi)) */
@@ -83,10 +94,7 @@ public class AdaRangeFinderFast {
         if (!(epsilon > 0.0 && epsilon <= 1.0)) {
             throw new IllegalArgumentException("epsilon: " + epsilon);
         }
-        this.I = Matrices.identityD(A.numRows());
-        this.TEMP1 = Matrices.createD(I.numRows(), I.numRows());
-        this.TEMP2 = Matrices.createD(I.numRows(), I.numRows());
-        this.TEMP3 = Matrices.createD(I.numRows(), 1);
+        this.TEMP3 = Matrices.createD(A.numRows(), 1);
         this.n = A.numColumns();
         this.bound = epsilon * A.normF() * BOUND_FACTOR;
         this.maxCols = Math.min(A.numRows(), A.numColumns());
@@ -107,10 +115,29 @@ public class AdaRangeFinderFast {
         return max;
     }
 
-    // NOTE: unlike Algorithm 4.2 (and unlike AdaRangeFinder) the test vectors
-    // here are drawn from U(-1, 1) rather than from N(0, 1). Their expected
-    // squared norm is ||A||_F^2 / 3, so the effective epsilon of this class is
-    // about sqrt(3) times the nominal one.
+    /**
+     * Applies the orthogonal projector {@code I - Q * Q'} to the column vector
+     * {@code y}, overwriting {@code y} with {@code y - Q * (Q' * y)}.
+     * <p>
+     * The projector is never formed explicitly. Doing so would need a
+     * {@code rows x rows} matrix and {@code O(rows * rows)} work per
+     * application, whereas the two matrix-vector products used here need
+     * {@code O(rows * k)} work and no storage beyond the {@code k x 1} vector
+     * of coefficients, where {@code k} is the number of columns of {@code Q}.
+     *
+     * @param Q
+     *            a matrix with orthonormal columns
+     * @param y
+     *            the column vector to project, overwritten with the result
+     */
+    private static void project(MatrixD Q, MatrixD y) {
+        // c = Q' * y
+        MatrixD c = Matrices.createD(Q.numColumns(), 1);
+        Q.transAmult(y, c);
+        // y = y - Q * c (multAdd accumulates into y, it does not clear it)
+        Q.multAdd(-1.0, c, y);
+    }
+
     public MatrixD computeQ() {
 
         ArrayList<MatrixD> vectors = new ArrayList<>(r);
@@ -138,10 +165,11 @@ public class AdaRangeFinderFast {
         // than the numerical rank of A can possibly have
         while (max > bound && Q.numColumns() < maxCols) {
 
-            MatrixD QQT = Q.transBmult(Q, TEMP1);
-            MatrixD x = I.add(-1.0, QQT, TEMP2);
+            // project the oldest test vector onto the orthogonal complement of
+            // the range of Q. This overwrites vectors.get(0) in place, which is
+            // safe because the shift() call below discards that element anyway
             y = vectors.get(0);
-            y = x.times(y);
+            project(Q, y);
 
             norm = norm(y);
             if (norm <= MACH_EPS_DBL) {
@@ -161,9 +189,10 @@ public class AdaRangeFinderFast {
     private void shift(ArrayList<MatrixD> vectors, MatrixD q, MatrixD Q) {
         vectors.remove(0);
         MatrixD omega = Matrices.randomUniformD(n, 1, -1.0, 1.0);
-        MatrixD I_minus = I.add(-1.0, Q.transBmult(Q, TEMP1), TEMP1);
-        MatrixD A_times_Omega = A.mult(omega, TEMP3);
-        MatrixD yr = I_minus.times(A_times_Omega);
+        // yr is retained in the vectors list, so it must be a fresh matrix and
+        // must not be written into the shared TEMP3 buffer
+        MatrixD yr = A.times(omega);
+        project(Q, yr);
         vectors.add(yr);
         MatrixD qt = q.transpose();
         for (int i = 0; i < vectors.size() - 1; ++i) {

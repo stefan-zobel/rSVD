@@ -43,7 +43,6 @@ public class AdaRangeFinder {
     private static final double BOUND_FACTOR = 1.0 / (10.0 * Math.sqrt(2.0 / Math.PI));
 
     private final MatrixD A;
-    private final MatrixD I;
     private final int n;
     /** epsilon * ||A||_F / (10 * sqrt(2 / pi)) */
     private final double bound;
@@ -83,7 +82,6 @@ public class AdaRangeFinder {
         if (!(epsilon > 0.0 && epsilon <= 1.0)) {
             throw new IllegalArgumentException("epsilon: " + epsilon);
         }
-        this.I = Matrices.identityD(A.numRows());
         this.n = A.numColumns();
         this.bound = epsilon * A.normF() * BOUND_FACTOR;
         this.maxCols = Math.min(A.numRows(), A.numColumns());
@@ -104,6 +102,29 @@ public class AdaRangeFinder {
             }
         }
         return max;
+    }
+
+    /**
+     * Applies the orthogonal projector {@code I - Q * Q'} to the column vector
+     * {@code y}, overwriting {@code y} with {@code y - Q * (Q' * y)}.
+     * <p>
+     * The projector is never formed explicitly. Doing so would need a
+     * {@code rows x rows} matrix and {@code O(rows * rows)} work per
+     * application, whereas the two matrix-vector products used here need
+     * {@code O(rows * k)} work and no storage beyond the {@code k x 1} vector
+     * of coefficients, where {@code k} is the number of columns of {@code Q}.
+     *
+     * @param Q
+     *            a matrix with orthonormal columns
+     * @param y
+     *            the column vector to project, overwritten with the result
+     */
+    private static void project(MatrixD Q, MatrixD y) {
+        // c = Q' * y
+        MatrixD c = Matrices.createD(Q.numColumns(), 1);
+        Q.transAmult(y, c);
+        // y = y - Q * c (multAdd accumulates into y, it does not clear it)
+        Q.multAdd(-1.0, c, y);
     }
 
     public MatrixD computeQ() {
@@ -133,9 +154,11 @@ public class AdaRangeFinder {
         // than the numerical rank of A can possibly have
         while (max > bound && Q.numColumns() < maxCols) {
 
-            MatrixD x = I.minus(Q.timesTransposed());
+            // project the oldest test vector onto the orthogonal complement of
+            // the range of Q. This overwrites vectors.get(0) in place, which is
+            // safe because the shift() call below discards that element anyway
             y = vectors.get(0);
-            y = x.times(y);
+            project(Q, y);
 
             norm = norm(y);
             if (norm <= MACH_EPS_DBL) {
@@ -155,9 +178,10 @@ public class AdaRangeFinder {
     private void shift(ArrayList<MatrixD> vectors, MatrixD q, MatrixD Q) {
         vectors.remove(0);
         MatrixD omega = Matrices.randomNormalD(n, 1);
-        MatrixD I_minus = I.minus(Q.timesTransposed());
-        MatrixD A_times_Omega = A.times(omega);
-        MatrixD yr = I_minus.times(A_times_Omega);
+        // yr is retained in the vectors list, so it must be a fresh matrix and
+        // must not be written into a shared scratch buffer
+        MatrixD yr = A.times(omega);
+        project(Q, yr);
         vectors.add(yr);
         MatrixD qt = q.transpose();
         for (int i = 0; i < vectors.size() - 1; ++i) {
