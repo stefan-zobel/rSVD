@@ -27,7 +27,7 @@ import net.jamu.matrix.MatrixD;
  * <p>
  * Algorithm 4.4 from Nathan Halko, Per-Gunnar Martinsson, and Joel A Tropp.
  * Finding structure with randomness: Probabilistic algorithms for constructing
- * approximate matrix decompositions. SIAM review, 53(2):217–288, 2011.
+ * approximate matrix decompositions. SIAM review, 53(2):217-288, 2011.
  */
 public class RanSubspaceIteration {
 
