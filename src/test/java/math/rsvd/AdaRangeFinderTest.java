@@ -33,6 +33,8 @@ public class AdaRangeFinderTest {
     // the adaptive algorithm has quite good tolerance even for matrices which
     // are not that large
     private static final double TOLERANCE = 1.0e-7;
+    // the measured deviation of Q' * Q from the identity is around 2.0e-15
+    private static final double ORTHO_TOLERANCE = 1.0e-10;
 
     @Test
     public void testNaturalNumbersTall() {
@@ -80,6 +82,18 @@ public class AdaRangeFinderTest {
         MatrixD Q = getQ(A);
         MatrixD B = Checks.checkFactorization2(Q, A, TOLERANCE);
         Checks.checkSVD2(B, Q, A, TOLERANCE);
+    }
+
+    @Test
+    public void testOrthonormalColumns() {
+        MatrixD Q = getQ(Matrices.randomNormalD(m, n));
+        MatrixD QtQ = Q.transpose().times(Q);
+        for (int i = 0; i < QtQ.numRows(); ++i) {
+            for (int j = 0; j < QtQ.numColumns(); ++j) {
+                double expected = (i == j) ? 1.0 : 0.0;
+                assertEquals(expected, QtQ.get(i, j), ORTHO_TOLERANCE);
+            }
+        }
     }
 
     @Test

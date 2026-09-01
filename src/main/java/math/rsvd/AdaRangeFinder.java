@@ -22,7 +22,7 @@ import net.jamu.matrix.Matrices;
 import net.jamu.matrix.MatrixD;
 
 /**
- * Adaptive Randomized Range Finder (2021-08-07 version).
+ * Adaptive Randomized Range Finder.
  * <p>
  * Algorithm 4.2 from Nathan Halko, Per-Gunnar Martinsson, and Joel A Tropp.
  * Finding structure with randomness: Probabilistic algorithms for constructing
@@ -183,12 +183,11 @@ public class AdaRangeFinder {
         MatrixD yr = A.times(omega);
         project(Q, yr);
         vectors.add(yr);
-        MatrixD qt = q.transpose();
+        // re-orthogonalize the remaining test vectors against the newest basis
+        // vector. That is the same projection with a single-column Q; the last
+        // element is yr, which was already projected above
         for (int i = 0; i < vectors.size() - 1; ++i) {
-            MatrixD y = vectors.get(i);
-            MatrixD x = qt.times(y);
-            MatrixD z = q.times(x);
-            y.addInplace(-1.0, z);
+            project(q, vectors.get(i));
         }
     }
 }
