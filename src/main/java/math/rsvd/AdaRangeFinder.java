@@ -1,5 +1,5 @@
 /*
- * Copyright 2020, 2021 Stefan Zobel
+ * Copyright 2020, 2026 Stefan Zobel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,28 +26,73 @@ import net.jamu.matrix.MatrixD;
  * <p>
  * Algorithm 4.2 from Nathan Halko, Per-Gunnar Martinsson, and Joel A Tropp.
  * Finding structure with randomness: Probabilistic algorithms for constructing
- * approximate matrix decompositions. SIAM review, 53(2):217–288, 2011.
+ * approximate matrix decompositions. SIAM review, 53(2):217-288, 2011.
  */
 public class AdaRangeFinder {
+
+    /**
+     * The default relative accuracy target used by
+     * {@link #AdaRangeFinder(MatrixD)}.
+     */
+    public static final double DEFAULT_EPSILON = 1.0e-3;
 
     /** The IEEE 754 machine epsilon from Cephes: (2^-53) */
     private static final double MACH_EPS_DBL = 1.11022302462515654042e-16;
     private static final int r = 10;
-    private static final double BOUND = 1.0 / (10.0 * Math.sqrt(2.0 / Math.PI));
+    /** The constant 1 / (10 * sqrt(2 / pi)) from Algorithm 4.2 */
+    private static final double BOUND_FACTOR = 1.0 / (10.0 * Math.sqrt(2.0 / Math.PI));
 
     private final MatrixD A;
     private final MatrixD I;
     private final int n;
+    /** epsilon * ||A||_F / (10 * sqrt(2 / pi)) */
+    private final double bound;
+    /** the numerical rank of A cannot exceed min(rows, columns) */
+    private final int maxCols;
 
+    /**
+     * Creates a range finder for {@code A} which uses {@link #DEFAULT_EPSILON}
+     * as its relative accuracy target.
+     *
+     * @param A
+     *            the matrix whose approximate range is sought
+     */
     public AdaRangeFinder(MatrixD A) {
+        this(A, DEFAULT_EPSILON);
+    }
+
+    /**
+     * Creates a range finder for {@code A} which stops as soon as the estimated
+     * residual {@code ||(I - Q * Q') * A||} has dropped below
+     * {@code epsilon * ||A||_F}, or as soon as {@code Q} has
+     * {@code min(rows, columns)} columns, whichever happens first. The
+     * criterion is relative to the Frobenius norm of {@code A} and is therefore
+     * invariant under a rescaling of {@code A}.
+     *
+     * @param A
+     *            the matrix whose approximate range is sought
+     * @param epsilon
+     *            the relative accuracy target, must be in the range
+     *            {@code (0.0, 1.0]}
+     * @throws IllegalArgumentException
+     *             if {@code epsilon} is not in the range {@code (0.0, 1.0]}
+     */
+    public AdaRangeFinder(MatrixD A, double epsilon) {
         this.A = Objects.requireNonNull(A);
+        // the negated comparison also rejects NaN
+        if (!(epsilon > 0.0 && epsilon <= 1.0)) {
+            throw new IllegalArgumentException("epsilon: " + epsilon);
+        }
         this.I = Matrices.identityD(A.numRows());
         this.n = A.numColumns();
+        this.bound = epsilon * A.normF() * BOUND_FACTOR;
+        this.maxCols = Math.min(A.numRows(), A.numColumns());
     }
 
     private static double norm(MatrixD y) {
-        // return y.norm2(); // normF() ?
-        return y.normF(); // norm2() ?
+        // y is always a column vector, so normF() is its euclidean length
+        // (norm2() would yield the same value but computes a full SVD)
+        return y.normF();
     }
 
     private static double getMax(ArrayList<MatrixD> vectors) {
@@ -71,6 +116,7 @@ public class AdaRangeFinder {
         MatrixD y = vectors.get(0);
         double norm = norm(y);
         if (norm <= MACH_EPS_DBL) {
+            // this also covers the case of a zero matrix (where bound == 0.0)
             return null;
         }
         double max = getMax(vectors);
@@ -82,8 +128,10 @@ public class AdaRangeFinder {
 
         shift(vectors, q, Q);
 
-        // we implicitly set epsilon == 1
-        while (max > BOUND) {
+        // stop as soon as the residual estimate has dropped below
+        // epsilon * ||A||_F / (10 * sqrt(2 / pi)), and never use more columns
+        // than the numerical rank of A can possibly have
+        while (max > bound && Q.numColumns() < maxCols) {
 
             MatrixD x = I.minus(Q.timesTransposed());
             y = vectors.get(0);

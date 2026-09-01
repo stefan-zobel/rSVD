@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Stefan Zobel
+ * Copyright 2026 Stefan Zobel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,10 +27,17 @@ import net.jamu.matrix.MatrixD;
  */
 public class AdaRangeFinderFast {
 
+    /**
+     * The default relative accuracy target used by
+     * {@link #AdaRangeFinderFast(MatrixD)}.
+     */
+    public static final double DEFAULT_EPSILON = 1.0e-3;
+
     /** The IEEE 754 machine epsilon from Cephes: (2^-53) */
     private static final double MACH_EPS_DBL = 1.11022302462515654042e-16;
     private static final int r = 10;
-    private static final double BOUND = 1.0 / (10.0 * Math.sqrt(2.0 / Math.PI));
+    /** The constant 1 / (10 * sqrt(2 / pi)) from Algorithm 4.2 */
+    private static final double BOUND_FACTOR = 1.0 / (10.0 * Math.sqrt(2.0 / Math.PI));
 
     private final MatrixD A;
     private final MatrixD I;
@@ -38,14 +45,51 @@ public class AdaRangeFinderFast {
     private final MatrixD TEMP2;
     private final MatrixD TEMP3;
     private final int n;
+    /** epsilon * ||A||_F / (10 * sqrt(2 / pi)) */
+    private final double bound;
+    /** the numerical rank of A cannot exceed min(rows, columns) */
+    private final int maxCols;
 
+    /**
+     * Creates a range finder for {@code A} which uses {@link #DEFAULT_EPSILON}
+     * as its relative accuracy target.
+     *
+     * @param A
+     *            the matrix whose approximate range is sought
+     */
     public AdaRangeFinderFast(MatrixD A) {
+        this(A, DEFAULT_EPSILON);
+    }
+
+    /**
+     * Creates a range finder for {@code A} which stops as soon as the estimated
+     * residual {@code ||(I - Q * Q') * A||} has dropped below
+     * {@code epsilon * ||A||_F}, or as soon as {@code Q} has
+     * {@code min(rows, columns)} columns, whichever happens first. The
+     * criterion is relative to the Frobenius norm of {@code A} and is therefore
+     * invariant under a rescaling of {@code A}.
+     *
+     * @param A
+     *            the matrix whose approximate range is sought
+     * @param epsilon
+     *            the relative accuracy target, must be in the range
+     *            {@code (0.0, 1.0]}
+     * @throws IllegalArgumentException
+     *             if {@code epsilon} is not in the range {@code (0.0, 1.0]}
+     */
+    public AdaRangeFinderFast(MatrixD A, double epsilon) {
         this.A = Objects.requireNonNull(A);
+        // the negated comparison also rejects NaN
+        if (!(epsilon > 0.0 && epsilon <= 1.0)) {
+            throw new IllegalArgumentException("epsilon: " + epsilon);
+        }
         this.I = Matrices.identityD(A.numRows());
         this.TEMP1 = Matrices.createD(I.numRows(), I.numRows());
         this.TEMP2 = Matrices.createD(I.numRows(), I.numRows());
         this.TEMP3 = Matrices.createD(I.numRows(), 1);
         this.n = A.numColumns();
+        this.bound = epsilon * A.normF() * BOUND_FACTOR;
+        this.maxCols = Math.min(A.numRows(), A.numColumns());
     }
 
     private static double norm(MatrixD y) {
@@ -63,6 +107,10 @@ public class AdaRangeFinderFast {
         return max;
     }
 
+    // NOTE: unlike Algorithm 4.2 (and unlike AdaRangeFinder) the test vectors
+    // here are drawn from U(-1, 1) rather than from N(0, 1). Their expected
+    // squared norm is ||A||_F^2 / 3, so the effective epsilon of this class is
+    // about sqrt(3) times the nominal one.
     public MatrixD computeQ() {
 
         ArrayList<MatrixD> vectors = new ArrayList<>(r);
@@ -73,6 +121,7 @@ public class AdaRangeFinderFast {
         MatrixD y = vectors.get(0);
         double norm = norm(y);
         if (norm <= MACH_EPS_DBL) {
+            // this also covers the case of a zero matrix (where bound == 0.0)
             return null;
         }
         double max = getMax(vectors);
@@ -84,8 +133,10 @@ public class AdaRangeFinderFast {
 
         shift(vectors, q, Q);
 
-        // we implicitly set epsilon == 1
-        while (max > BOUND) {
+        // stop as soon as the residual estimate has dropped below
+        // epsilon * ||A||_F / (10 * sqrt(2 / pi)), and never use more columns
+        // than the numerical rank of A can possibly have
+        while (max > bound && Q.numColumns() < maxCols) {
 
             MatrixD QQT = Q.transBmult(Q, TEMP1);
             MatrixD x = I.add(-1.0, QQT, TEMP2);

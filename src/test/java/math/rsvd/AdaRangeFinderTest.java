@@ -15,6 +15,9 @@
  */
 package math.rsvd;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import net.jamu.matrix.Matrices;
 import net.jamu.matrix.MatrixD;
 import randomizedSVD.Checks;
@@ -77,6 +80,52 @@ public class AdaRangeFinderTest {
         MatrixD Q = getQ(A);
         MatrixD B = Checks.checkFactorization2(Q, A, TOLERANCE);
         Checks.checkSVD2(B, Q, A, TOLERANCE);
+    }
+
+    @Test
+    public void testScaleInvariance() {
+        int k1 = new AdaRangeFinder(Matrices.naturalNumbersD(m, n)).computeQ().numColumns();
+        int k2 = new AdaRangeFinder(Matrices.naturalNumbersD(m, n).scaleInplace(1.0e8)).computeQ()
+                .numColumns();
+        // the natural numbers matrix has rank 2 no matter how it is scaled
+        assertEquals(2, k1);
+        assertEquals(k1, k2);
+    }
+
+    @Test
+    public void testColumnCap() {
+        // an epsilon this small can never be met, so only the cap can stop the
+        // iteration
+        MatrixD Q = new AdaRangeFinder(Matrices.randomNormalD(m, n), 1.0e-15).computeQ();
+        assertTrue(Q.numColumns() <= Math.min(m, n));
+    }
+
+    @Test
+    public void testEpsilonDefaultMatchesExplicitValue() {
+        MatrixD A = Matrices.naturalNumbersD(m, n);
+        int kDefault = new AdaRangeFinder(A).computeQ().numColumns();
+        int kExplicit = new AdaRangeFinder(A, AdaRangeFinder.DEFAULT_EPSILON).computeQ().numColumns();
+        assertEquals(kDefault, kExplicit);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testEpsilonZero() {
+        new AdaRangeFinder(Matrices.randomNormalD(m, n), 0.0);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testEpsilonNegative() {
+        new AdaRangeFinder(Matrices.randomNormalD(m, n), -1.0);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testEpsilonTooLarge() {
+        new AdaRangeFinder(Matrices.randomNormalD(m, n), 1.5);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testEpsilonNaN() {
+        new AdaRangeFinder(Matrices.randomNormalD(m, n), Double.NaN);
     }
 
     private MatrixD getQ(MatrixD A) {
