@@ -35,6 +35,7 @@ public class ApproximateBasisTest {
         int n = 150;
         int estimatedRank = 2;
         MatrixD A = Matrices.naturalNumbersD(m, n);
+        Checks.assertTall(A);
         SVD svd = getSVD(A, estimatedRank);
         checkSVD(svd, A, TOLERANCE);
     }
@@ -45,6 +46,7 @@ public class ApproximateBasisTest {
         int n = 220;
         int estimatedRank = 2;
         MatrixD A = Matrices.naturalNumbersD(m, n);
+        Checks.assertWide(A);
         SVD svd = getSVD(A, estimatedRank);
         checkSVD(svd, A, TOLERANCE);
     }
@@ -55,6 +57,7 @@ public class ApproximateBasisTest {
         int n = 150;
         int estimatedRank = Math.min(m, n);
         MatrixD A = Matrices.randomNormalD(m, n, 1L);
+        Checks.assertTall(A);
         SVD svd = getSVD(A, estimatedRank);
         checkSVD(svd, A, TOLERANCE);
     }
@@ -65,6 +68,7 @@ public class ApproximateBasisTest {
         int n = 220;
         int estimatedRank = Math.min(m, n);
         MatrixD A = Matrices.randomNormalD(m, n, 2L);
+        Checks.assertWide(A);
         SVD svd = getSVD(A, estimatedRank);
         checkSVD(svd, A, TOLERANCE);
     }
@@ -75,6 +79,7 @@ public class ApproximateBasisTest {
         int n = 150;
         int estimatedRank = Math.min(m, n);
         MatrixD A = Matrices.randomUniformD(m, n, 3L);
+        Checks.assertTall(A);
         SVD svd = getSVD(A, estimatedRank);
         checkSVD(svd, A, TOLERANCE);
     }
@@ -85,6 +90,7 @@ public class ApproximateBasisTest {
         int n = 220;
         int estimatedRank = Math.min(m, n);
         MatrixD A = Matrices.randomUniformD(m, n, 4L);
+        Checks.assertWide(A);
         SVD svd = getSVD(A, estimatedRank);
         checkSVD(svd, A, TOLERANCE);
     }

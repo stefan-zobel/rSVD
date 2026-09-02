@@ -32,6 +32,7 @@ public class RanRangeFinderTest {
         // this is really low rank
         int estimatedRank = 2;
         MatrixD A = Matrices.naturalNumbersD(m, n);
+        Checks.assertTall(A);
         MatrixD Q = getQ(A, estimatedRank);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
         Checks.checkSVD(B, Q, A, TOLERANCE);
@@ -42,6 +43,7 @@ public class RanRangeFinderTest {
         // this is really low rank
         int estimatedRank = 2;
         MatrixD A = Matrices.naturalNumbersD(n, m);
+        Checks.assertWide(A);
         MatrixD Q = getQ(A, estimatedRank);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
         Checks.checkSVD(B, Q, A, TOLERANCE);
@@ -52,6 +54,7 @@ public class RanRangeFinderTest {
         // high rank random noise
         int estimatedRank = Math.min(m, n);
         MatrixD A = Matrices.randomNormalD(m, n);
+        Checks.assertTall(A);
         MatrixD Q = getQ(A, estimatedRank);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
         Checks.checkSVD(B, Q, A, TOLERANCE);
@@ -62,6 +65,7 @@ public class RanRangeFinderTest {
         // high rank random noise
         int estimatedRank = Math.min(m, n);
         MatrixD A = Matrices.randomNormalD(n, m);
+        Checks.assertWide(A);
         MatrixD Q = getQ(A, estimatedRank);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
         Checks.checkSVD(B, Q, A, TOLERANCE);
@@ -72,6 +76,7 @@ public class RanRangeFinderTest {
         // high rank random noise
         int estimatedRank = Math.min(m, n);
         MatrixD A = Matrices.randomUniformD(m, n);
+        Checks.assertTall(A);
         MatrixD Q = getQ(A, estimatedRank);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
         Checks.checkSVD(B, Q, A, TOLERANCE);
@@ -82,6 +87,7 @@ public class RanRangeFinderTest {
         // high rank random noise
         int estimatedRank = Math.min(m, n);
         MatrixD A = Matrices.randomUniformD(n, m);
+        Checks.assertWide(A);
         MatrixD Q = getQ(A, estimatedRank);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
         Checks.checkSVD(B, Q, A, TOLERANCE);

@@ -53,6 +53,34 @@ public final class Checks {
         return ABS_TOL_FACTOR * expected.normF();
     }
 
+    /**
+     * Asserts that {@code A} is tall, i.e. that it has more rows than columns.
+     * <p>
+     * The shape of a test matrix is decided by nothing but the order of two
+     * arguments and is therefore easy to get wrong by copy and paste. A test
+     * that ends up with the wrong shape does not fail, it silently duplicates
+     * its counterpart, so the shape is asserted instead of assumed.
+     *
+     * @param A
+     *            the test matrix
+     */
+    public static void assertTall(MatrixD A) {
+        assertTrue("this test needs a tall matrix, but got " + A.numRows() + "x" + A.numColumns(),
+                A.numRows() > A.numColumns());
+    }
+
+    /**
+     * Asserts that {@code A} is wide, i.e. that it has more columns than rows.
+     *
+     * @param A
+     *            the test matrix
+     * @see #assertTall(MatrixD)
+     */
+    public static void assertWide(MatrixD A) {
+        assertTrue("this test needs a wide matrix, but got " + A.numRows() + "x" + A.numColumns(),
+                A.numRows() < A.numColumns());
+    }
+
     public static MatrixD checkFactorization(MatrixD Q, MatrixD A, double tolerance) {
         MatrixD A_approx = null;
         MatrixD B = null;

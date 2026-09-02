@@ -75,8 +75,10 @@ public class RanSubspaceIteration {
                 Q = decompose(Y);
             }
         } else {
-            // XXX ???
-            //throw new UnsupportedOperationException("m < k not yet implemented");
+            // for a wide A the sweep runs on the transpose: Y above is
+            // (Omega * A)' = A' * Omega', so Q spans the row space of A and
+            // stays n x (targetRank + P) throughout. The order of A and AT is
+            // therefore swapped with respect to the branch above
             for (int j = 1; j < q; ++j) {
                 Y = A.times(Q);
                 Q = decompose(Y);

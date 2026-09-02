@@ -43,6 +43,7 @@ public class AdaRangeFinderTest {
     @Test
     public void testNaturalNumbersTall() {
         MatrixD A = Matrices.naturalNumbersD(m, n);
+        Checks.assertTall(A);
         MatrixD Q = getQ(A);
         MatrixD B = Checks.checkFactorization2(Q, A, TOLERANCE);
         Checks.checkSVD2(B, Q, A, TOLERANCE);
@@ -51,6 +52,7 @@ public class AdaRangeFinderTest {
     @Test
     public void testNaturalNumbersWide() {
         MatrixD A = Matrices.naturalNumbersD(n, m);
+        Checks.assertWide(A);
         MatrixD Q = getQ(A);
         MatrixD B = Checks.checkFactorization2(Q, A, TOLERANCE);
         Checks.checkSVD2(B, Q, A, TOLERANCE);
@@ -59,6 +61,7 @@ public class AdaRangeFinderTest {
     @Test
     public void testRandomNormalTall() {
         MatrixD A = Matrices.randomNormalD(m, n, 1L);
+        Checks.assertTall(A);
         MatrixD Q = getQ(A);
         MatrixD B = Checks.checkFactorization2(Q, A, TOLERANCE);
         Checks.checkSVD2(B, Q, A, TOLERANCE);
@@ -67,6 +70,7 @@ public class AdaRangeFinderTest {
     @Test
     public void testRandomNormalWide() {
         MatrixD A = Matrices.randomNormalD(n, m, 2L);
+        Checks.assertWide(A);
         MatrixD Q = getQ(A);
         MatrixD B = Checks.checkFactorization2(Q, A, TOLERANCE);
         Checks.checkSVD2(B, Q, A, TOLERANCE);
@@ -75,6 +79,7 @@ public class AdaRangeFinderTest {
     @Test
     public void testRandomUniformTall() {
         MatrixD A = Matrices.randomUniformD(m, n, 3L);
+        Checks.assertTall(A);
         MatrixD Q = getQ(A);
         MatrixD B = Checks.checkFactorization2(Q, A, TOLERANCE);
         Checks.checkSVD2(B, Q, A, TOLERANCE);
@@ -82,7 +87,8 @@ public class AdaRangeFinderTest {
 
     @Test
     public void testRandomUniformWide() {
-        MatrixD A = Matrices.randomUniformD(m, n, 4L);
+        MatrixD A = Matrices.randomUniformD(n, m, 4L);
+        Checks.assertWide(A);
         MatrixD Q = getQ(A);
         MatrixD B = Checks.checkFactorization2(Q, A, TOLERANCE);
         Checks.checkSVD2(B, Q, A, TOLERANCE);
