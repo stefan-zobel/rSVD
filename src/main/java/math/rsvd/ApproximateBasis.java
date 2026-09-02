@@ -29,8 +29,42 @@ public final class ApproximateBasis {
     private final int n;
     private final int targetRank;
     private final boolean transpose;
+    /** whether {@link #seed} was supplied by the caller */
+    private final boolean seeded;
+    /** the seed for the random test matrix, only meaningful if {@link #seeded} */
+    private final long seed;
 
+    /**
+     * Creates an approximate basis for {@code A}. The random test matrix is
+     * drawn from an unspecified source of randomness, so repeated runs
+     * generally differ.
+     *
+     * @param A
+     *            the matrix to decompose
+     * @param estimatedRank
+     *            the target rank, must not be negative
+     */
     public ApproximateBasis(MatrixD A, int estimatedRank) {
+        this(A, estimatedRank, false, 0L);
+    }
+
+    /**
+     * Creates a reproducible approximate basis for {@code A}. Two instances
+     * constructed with the same matrix, the same {@code estimatedRank} and the
+     * same {@code seed} compute the same decomposition.
+     *
+     * @param A
+     *            the matrix to decompose
+     * @param estimatedRank
+     *            the target rank, must not be negative
+     * @param seed
+     *            the seed for the random test matrix
+     */
+    public ApproximateBasis(MatrixD A, int estimatedRank, long seed) {
+        this(A, estimatedRank, true, seed);
+    }
+
+    private ApproximateBasis(MatrixD A, int estimatedRank, boolean seeded, long seed) {
         if (estimatedRank < 0) {
             throw new IllegalArgumentException("estimatedRank: " + estimatedRank);
         }
@@ -39,6 +73,8 @@ public final class ApproximateBasis {
         transpose = (m < n) ? true : false;
         this.A = A;
         targetRank = Math.min(estimatedRank, Math.min(m, n));
+        this.seeded = seeded;
+        this.seed = seed;
     }
 
     public SVD computeSVD() {
@@ -163,10 +199,12 @@ public final class ApproximateBasis {
     private MatrixD getRandomMatrix() {
         MatrixD Omega = null;
         if (transpose) {
-            Omega = Matrices.randomUniformD(targetRank + P, m, -1.0, 1.0);
+            Omega = seeded ? Matrices.randomUniformD(targetRank + P, m, -1.0, 1.0, seed)
+                    : Matrices.randomUniformD(targetRank + P, m, -1.0, 1.0);
             return Omega.times(A).transpose();
         }
-        Omega = Matrices.randomUniformD(n, targetRank + P, -1.0, 1.0);
+        Omega = seeded ? Matrices.randomUniformD(n, targetRank + P, -1.0, 1.0, seed)
+                : Matrices.randomUniformD(n, targetRank + P, -1.0, 1.0);
         return A.times(Omega);
     }
 }

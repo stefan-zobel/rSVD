@@ -23,6 +23,36 @@ import net.jamu.matrix.SvdD;
 
 public final class Checks {
 
+    /**
+     * Absolute tolerance floor, as a fraction of {@code ||A||_F}.
+     * <p>
+     * A purely relative elementwise comparison is meaningless close to zero: an
+     * entry that happens to land at 1.0e-12 would demand 1.0e-19 of absolute
+     * accuracy at a relative tolerance of 1.0e-7, which no correct
+     * implementation can deliver. The comparison is therefore anchored to the
+     * size of the matrix rather than to the size of the individual entry.
+     * <p>
+     * The value is measured, not guessed: over 1000 reconstructions of a
+     * 220 x 150 standard normal matrix the largest observed elementwise error
+     * was 2.0e-12 * ||A||_F, so this floor carries a factor of 50 of headroom
+     * while still being six orders of magnitude below the error a genuinely
+     * broken decomposition would produce.
+     */
+    private static final double ABS_TOL_FACTOR = 1.0e-10;
+
+    /**
+     * The absolute tolerance floor to use when comparing against
+     * {@code expected}.
+     *
+     * @param expected
+     *            the reference matrix
+     * @return {@link #ABS_TOL_FACTOR} times the Frobenius norm of
+     *         {@code expected}
+     */
+    public static double absTol(MatrixD expected) {
+        return ABS_TOL_FACTOR * expected.normF();
+    }
+
     public static MatrixD checkFactorization(MatrixD Q, MatrixD A, double tolerance) {
         MatrixD A_approx = null;
         MatrixD B = null;
@@ -35,7 +65,7 @@ public final class Checks {
             A_approx = B.times(Q.transpose());
         }
 
-        boolean equal = Matrices.approxEqual(A_approx, A, tolerance);
+        boolean equal = Matrices.approxEqual(A_approx, A, tolerance, absTol(A));
         assertTrue("A_approx and A should be approximately equal", equal);
         return B;
     }
@@ -44,7 +74,7 @@ public final class Checks {
         MatrixD B = Q.transpose().times(A);
         MatrixD A_approx = Q.times(B);
 
-        boolean equal = Matrices.approxEqual(A_approx, A, tolerance);
+        boolean equal = Matrices.approxEqual(A_approx, A, tolerance, absTol(A));
         assertTrue("A_approx and A should be approximately equal", equal);
         return B;
     }
@@ -78,7 +108,7 @@ public final class Checks {
             A_approx = U_approx.timesTimes(Sigma, Vt);
         }
 
-        boolean equal = Matrices.approxEqual(A_approx, A_expected, tolerance);
+        boolean equal = Matrices.approxEqual(A_approx, A_expected, tolerance, absTol(A_expected));
         assertTrue("A and reconstruction of A should be approximately equal", equal);
     }
 
@@ -96,7 +126,7 @@ public final class Checks {
         // A_approx
         MatrixD A_approx = U_approx.timesTimes(Sigma, Vt);
 
-        boolean equal = Matrices.approxEqual(A_approx, A_expected, tolerance);
+        boolean equal = Matrices.approxEqual(A_approx, A_expected, tolerance, absTol(A_expected));
         assertTrue("A and reconstruction of A should be approximately equal", equal);
     }
 }

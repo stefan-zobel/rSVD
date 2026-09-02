@@ -17,6 +17,7 @@ package math.rsvd;
 
 import java.util.ArrayList;
 import java.util.Objects;
+import java.util.Random;
 
 import net.jamu.matrix.Matrices;
 import net.jamu.matrix.MatrixD;
@@ -48,10 +49,15 @@ public class AdaRangeFinder {
     private final double bound;
     /** the numerical rank of A cannot exceed min(rows, columns) */
     private final int maxCols;
+    /** whether {@link #seed} was supplied by the caller */
+    private final boolean seeded;
+    /** starting point of the seed sequence, only meaningful if {@link #seeded} */
+    private final long seed;
 
     /**
      * Creates a range finder for {@code A} which uses {@link #DEFAULT_EPSILON}
-     * as its relative accuracy target.
+     * as its relative accuracy target. The test vectors are drawn from an
+     * unspecified source of randomness, so repeated runs generally differ.
      *
      * @param A
      *            the matrix whose approximate range is sought
@@ -77,6 +83,35 @@ public class AdaRangeFinder {
      *             if {@code epsilon} is not in the range {@code (0.0, 1.0]}
      */
     public AdaRangeFinder(MatrixD A, double epsilon) {
+        this(A, epsilon, false, 0L);
+    }
+
+    /**
+     * Creates a reproducible range finder for {@code A}. Two range finders
+     * constructed with the same matrix, the same {@code epsilon} and the same
+     * {@code seed} compute the same basis, and repeated {@link #computeQ()}
+     * calls on one instance do so as well.
+     * <p>
+     * Note that there is deliberately no {@code (MatrixD, long)} overload: it
+     * would be chosen over {@code (MatrixD, double)} for an integer literal, so
+     * {@code new AdaRangeFinder(A, 1)} would silently mean a seed rather than
+     * an accuracy target. Use {@link #DEFAULT_EPSILON} explicitly instead.
+     *
+     * @param A
+     *            the matrix whose approximate range is sought
+     * @param epsilon
+     *            the relative accuracy target, must be in the range
+     *            {@code (0.0, 1.0]}
+     * @param seed
+     *            the starting point of the sequence of test vectors
+     * @throws IllegalArgumentException
+     *             if {@code epsilon} is not in the range {@code (0.0, 1.0]}
+     */
+    public AdaRangeFinder(MatrixD A, double epsilon, long seed) {
+        this(A, epsilon, true, seed);
+    }
+
+    private AdaRangeFinder(MatrixD A, double epsilon, boolean seeded, long seed) {
         this.A = Objects.requireNonNull(A);
         // the negated comparison also rejects NaN
         if (!(epsilon > 0.0 && epsilon <= 1.0)) {
@@ -85,6 +120,25 @@ public class AdaRangeFinder {
         this.n = A.numColumns();
         this.bound = epsilon * A.normF() * BOUND_FACTOR;
         this.maxCols = Math.min(A.numRows(), A.numColumns());
+        this.seeded = seeded;
+        this.seed = seed;
+    }
+
+    /**
+     * Draws the next {@code n x 1} test vector.
+     * <p>
+     * Note that the seeded factory methods of {@code Matrices} construct a new
+     * {@code Random} from the seed on every call, so passing one and the same
+     * seed to all of them would yield identical vectors and would silently
+     * degenerate the algorithm. Each draw therefore consumes a fresh seed from
+     * {@code seeds}.
+     *
+     * @param seeds
+     *            the seed sequence, or {@code null} for an unseeded run
+     * @return a new {@code n x 1} standard normal random vector
+     */
+    private MatrixD nextTestVector(Random seeds) {
+        return (seeds == null) ? Matrices.randomNormalD(n, 1) : Matrices.randomNormalD(n, 1, seeds.nextLong());
     }
 
     private static double norm(MatrixD y) {
@@ -129,9 +183,12 @@ public class AdaRangeFinder {
 
     public MatrixD computeQ() {
 
+        // a local seed sequence keeps computeQ() idempotent and reentrant
+        Random seeds = seeded ? new Random(seed) : null;
+
         ArrayList<MatrixD> vectors = new ArrayList<>(r);
         for (int k = 0; k < r; ++k) {
-            vectors.add(A.times(Matrices.randomNormalD(n, 1)));
+            vectors.add(A.times(nextTestVector(seeds)));
         }
 
         MatrixD y = vectors.get(0);
@@ -147,7 +204,7 @@ public class AdaRangeFinder {
 
         MatrixD Q = q.copy();
 
-        shift(vectors, q, Q);
+        shift(vectors, q, Q, seeds);
 
         // stop as soon as the residual estimate has dropped below
         // epsilon * ||A||_F / (10 * sqrt(2 / pi)), and never use more columns
@@ -167,7 +224,7 @@ public class AdaRangeFinder {
             q = y.scale(1.0 / norm, q);
             Q = Q.appendColumn(q);
 
-            shift(vectors, q, Q);
+            shift(vectors, q, Q, seeds);
 
             max = getMax(vectors);
         }
@@ -175,9 +232,9 @@ public class AdaRangeFinder {
         return Q;
     }
 
-    private void shift(ArrayList<MatrixD> vectors, MatrixD q, MatrixD Q) {
+    private void shift(ArrayList<MatrixD> vectors, MatrixD q, MatrixD Q, Random seeds) {
         vectors.remove(0);
-        MatrixD omega = Matrices.randomNormalD(n, 1);
+        MatrixD omega = nextTestVector(seeds);
         // yr is retained in the vectors list, so it must be a fresh matrix and
         // must not be written into a shared scratch buffer
         MatrixD yr = A.times(omega);

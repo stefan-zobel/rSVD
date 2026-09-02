@@ -23,6 +23,7 @@ import net.jamu.matrix.Matrices;
 import net.jamu.matrix.MatrixD;
 import net.jamu.matrix.SvdD;
 import old.math.rsvd.ApproximateBasis2;
+import randomizedSVD.Checks;
 
 public class ApproximateBasis2Test {
 
@@ -115,7 +116,7 @@ public class ApproximateBasis2Test {
             QQT = I.setSubmatrixInplace(0, 0, QQT, 0, 0, QQT.endRow(), QQT.endCol());
         }
         MatrixD A_approx = QQT.times(A);
-        boolean equal = Matrices.approxEqual(A_approx, A, tolerance);
+        boolean equal = Matrices.approxEqual(A_approx, A, tolerance, Checks.absTol(A));
         assertTrue("A_approx and A should be approximately equal", equal);
 
         if (transpose) {
@@ -166,7 +167,7 @@ public class ApproximateBasis2Test {
 
         MatrixD A_approx = U.timesTimes(S, Vt);
         System.out.println("A_approx: " + A_approx.numRows() + "x" + A_approx.numColumns());
-        boolean equal = Matrices.approxEqual(A_approx, A_expected, tolerance);
+        boolean equal = Matrices.approxEqual(A_approx, A_expected, tolerance, Checks.absTol(A_expected));
         System.out.println(equal ? "EQUAL" : "NOT EQUAL");
         System.out.println("***");
         assertTrue("A and reconstruction of A should be approximately equal", equal);

@@ -21,10 +21,13 @@ import org.junit.Test;
 
 import net.jamu.matrix.Matrices;
 import net.jamu.matrix.MatrixD;
+import randomizedSVD.Checks;
 
 public class ApproximateBasisTest {
 
     private static final double TOLERANCE = 1.0e-8;
+    // seeded so that a failure can be reproduced
+    private static final long SEED = 7L;
 
     @Test
     public void testNaturalNumbersTall() {
@@ -51,7 +54,7 @@ public class ApproximateBasisTest {
         int m = 220;
         int n = 150;
         int estimatedRank = Math.min(m, n);
-        MatrixD A = Matrices.randomNormalD(m, n);
+        MatrixD A = Matrices.randomNormalD(m, n, 1L);
         SVD svd = getSVD(A, estimatedRank);
         checkSVD(svd, A, TOLERANCE);
     }
@@ -61,7 +64,7 @@ public class ApproximateBasisTest {
         int m = 150;
         int n = 220;
         int estimatedRank = Math.min(m, n);
-        MatrixD A = Matrices.randomNormalD(m, n);
+        MatrixD A = Matrices.randomNormalD(m, n, 2L);
         SVD svd = getSVD(A, estimatedRank);
         checkSVD(svd, A, TOLERANCE);
     }
@@ -71,7 +74,7 @@ public class ApproximateBasisTest {
         int m = 220;
         int n = 150;
         int estimatedRank = Math.min(m, n);
-        MatrixD A = Matrices.randomUniformD(m, n);
+        MatrixD A = Matrices.randomUniformD(m, n, 3L);
         SVD svd = getSVD(A, estimatedRank);
         checkSVD(svd, A, TOLERANCE);
     }
@@ -81,7 +84,7 @@ public class ApproximateBasisTest {
         int m = 150;
         int n = 220;
         int estimatedRank = Math.min(m, n);
-        MatrixD A = Matrices.randomUniformD(m, n);
+        MatrixD A = Matrices.randomUniformD(m, n, 4L);
         SVD svd = getSVD(A, estimatedRank);
         checkSVD(svd, A, TOLERANCE);
     }
@@ -92,11 +95,11 @@ public class ApproximateBasisTest {
         MatrixD Vt = svd.Vt;
 
         MatrixD A_approx = U.timesTimes(S, Vt);
-        boolean equal = Matrices.approxEqual(A_approx, A_expected, tolerance);
+        boolean equal = Matrices.approxEqual(A_approx, A_expected, tolerance, Checks.absTol(A_expected));
         assertTrue("A and reconstruction of A should be approximately equal", equal);
     }
 
     private SVD getSVD(MatrixD A, int estimatedRank) {
-        return new ApproximateBasis(A, estimatedRank).computeSVD();
+        return new ApproximateBasis(A, estimatedRank, SEED).computeSVD();
     }
 }
