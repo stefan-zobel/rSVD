@@ -39,8 +39,56 @@ public class RanPowerIteration {
     private final int n;
     private final int targetRank;
     private final int q;
+    /** whether {@link #seed} was supplied by the caller */
+    private final boolean seeded;
+    /** the seed for the random test matrix, only meaningful if {@link #seeded} */
+    private final long seed;
 
+    /**
+     * Creates a power iteration for {@code A}. The random test matrix is drawn
+     * from an unspecified source of randomness, so repeated runs generally
+     * differ.
+     *
+     * @param A
+     *            the matrix to decompose
+     * @param estimatedRank
+     *            the target rank, must not be negative
+     * @param q
+     *            the number of power iterations, must be at least 1
+     */
     public RanPowerIteration(MatrixD A, int estimatedRank, int q) {
+        this(A, estimatedRank, q, false, 0L);
+    }
+
+    /**
+     * Creates a power iteration for {@code A} which draws its test matrix from
+     * {@code seed}, so that a run can be repeated.
+     * <p>
+     * Note that this pins the input of the algorithm, not its output. Two runs
+     * with the same seed see the same test matrix, but the basis they return
+     * is not reproducible elementwise: {@code estimatedRank + P} exceeds the
+     * rank of {@code A} as soon as the caller asks for the full rank, and the
+     * surplus columns of the QR decomposition are then determined by round-off
+     * alone. Measured, two runs with one and the same seed differ by 0.5 in
+     * single entries of {@code Q}, while their reconstructions
+     * {@code Q * Q' * A} still agree to about {@code 1e-9 * ||A||_F}. The
+     * subspace that carries the approximation is reproducible, a basis of it
+     * is not.
+     *
+     * @param A
+     *            the matrix to decompose
+     * @param estimatedRank
+     *            the target rank, must not be negative
+     * @param q
+     *            the number of power iterations, must be at least 1
+     * @param seed
+     *            the seed for the random test matrix
+     */
+    public RanPowerIteration(MatrixD A, int estimatedRank, int q, long seed) {
+        this(A, estimatedRank, q, true, seed);
+    }
+
+    private RanPowerIteration(MatrixD A, int estimatedRank, int q, boolean seeded, long seed) {
         if (estimatedRank < 0) {
             throw new IllegalArgumentException("negative target rank: " + estimatedRank);
         }
@@ -52,42 +100,40 @@ public class RanPowerIteration {
         this.n = A.numColumns();
         this.targetRank = estimatedRank;
         this.q = q;
+        this.seeded = seeded;
+        this.seed = seed;
     }
 
     public MatrixD computeQ() {
-        // AT: n x m
-        MatrixD AT = A.transpose();
-        // tmp2: m x m
-        MatrixD tmp2 = Matrices.createD(A.numRows(), A.numRows());
-        // m x m
-        MatrixD B = A.mult(AT, tmp2);
-        // tmp1: n x m
-        MatrixD tmp1 = Matrices.createD(n, A.numRows());
-        for (int i = 2; i <= q; ++i) {
-            // B = AT.times(B);
-            // (n x m) * (m x m) = (n x m)
-            tmp1 = AT.mult(B, tmp1);
-            // B = A.times(B);
-            // (m x n) * (n x m) = m x m
-            B = A.mult(tmp1, tmp2);
+        // sketch A itself for a tall matrix and its transpose for a wide one.
+        // The two cases are the same computation because
+        // A' * (A * A')^q == (A' * A)^q * A', so only the matrix being sketched
+        // changes and Q always spans the larger of the two subspaces
+        MatrixD M = (m >= n) ? A : A.transpose();
+        MatrixD MT = (m >= n) ? A.transpose() : A;
+
+        // Y = (M * M')^q * M * Omega, formed by alternating multiplication as
+        // the paper prescribes. Note that M * M' is never built: that would be
+        // an m x m matrix costing O(m^3) per step, whereas applying M and M' to
+        // the columns of the sketch costs O(m * n * (targetRank + P))
+        MatrixD Y = M.times(nextTestMatrix(M.numColumns(), targetRank + P));
+        for (int i = 0; i < q; ++i) {
+            Y = MT.times(Y);
+            Y = M.times(Y);
         }
-        // (m x m) * (m x n) = (m x n)
-        B = B.times(A);
-        MatrixD Y = null;
-        MatrixD Q = null;
-        if (m >= n) {
-            MatrixD Omega = Matrices.randomNormalD(n, targetRank + P);
-            Y = B.times(Omega);
-            Q = decompose(Y);
-        } else {
-            MatrixD Omega = Matrices.randomNormalD(targetRank + P, m);
-            Y = Omega.times(B).transpose();
-            Q = decompose(Y);
-        }
-        return Q;
+        return Y.qrd().getQ();
     }
 
-    private MatrixD decompose(MatrixD Y) {
-        return Y.qrd().getQ();
+    /**
+     * Draws the {@code rows x cols} standard normal test matrix.
+     *
+     * @param rows
+     *            the number of rows
+     * @param cols
+     *            the number of columns
+     * @return the test matrix, reproducible if this instance is seeded
+     */
+    private MatrixD nextTestMatrix(int rows, int cols) {
+        return seeded ? Matrices.randomNormalD(rows, cols, seed) : Matrices.randomNormalD(rows, cols);
     }
 }

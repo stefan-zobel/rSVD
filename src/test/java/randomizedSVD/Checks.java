@@ -37,6 +37,10 @@ public final class Checks {
      * was 2.0e-12 * ||A||_F, so this floor carries a factor of 50 of headroom
      * while still being six orders of magnitude below the error a genuinely
      * broken decomposition would produce.
+     * <p>
+     * This is the default. An algorithm that is deliberately much less
+     * accurate states its own floor through the overloads that take an
+     * explicit { absTolFactor}.
      */
     private static final double ABS_TOL_FACTOR = 1.0e-10;
 
@@ -50,7 +54,26 @@ public final class Checks {
      *         {@code expected}
      */
     public static double absTol(MatrixD expected) {
-        return ABS_TOL_FACTOR * expected.normF();
+        return absTol(expected, ABS_TOL_FACTOR);
+    }
+
+    /**
+     * The absolute tolerance floor to use when comparing against
+     * {@code expected}, with an explicit factor.
+     * <p>
+     * A test class whose algorithm is much less accurate than
+     * {@link #ABS_TOL_FACTOR} assumes has to say so, rather than have the
+     * shared floor loosened for everybody.
+     *
+     * @param expected
+     *            the reference matrix
+     * @param absTolFactor
+     *            the fraction of {@code ||expected||_F} to use as the floor
+     * @return {@code absTolFactor} times the Frobenius norm of
+     *         {@code expected}
+     */
+    public static double absTol(MatrixD expected, double absTolFactor) {
+        return absTolFactor * expected.normF();
     }
 
     /**
@@ -82,6 +105,24 @@ public final class Checks {
     }
 
     public static MatrixD checkFactorization(MatrixD Q, MatrixD A, double tolerance) {
+        return checkFactorization(Q, A, tolerance, ABS_TOL_FACTOR);
+    }
+
+    /**
+     * As {@link #checkFactorization(MatrixD, MatrixD, double)}, but with an
+     * explicit absolute tolerance floor.
+     *
+     * @param Q
+     *            the approximate basis
+     * @param A
+     *            the matrix that was decomposed
+     * @param tolerance
+     *            the relative tolerance
+     * @param absTolFactor
+     *            the fraction of {@code ||A||_F} to use as the absolute floor
+     * @return the factor {@code B} of the decomposition
+     */
+    public static MatrixD checkFactorization(MatrixD Q, MatrixD A, double tolerance, double absTolFactor) {
         MatrixD A_approx = null;
         MatrixD B = null;
 
@@ -93,7 +134,7 @@ public final class Checks {
             A_approx = B.times(Q.transpose());
         }
 
-        boolean equal = Matrices.approxEqual(A_approx, A, tolerance, absTol(A));
+        boolean equal = Matrices.approxEqual(A_approx, A, tolerance, absTol(A, absTolFactor));
         assertTrue("A_approx and A should be approximately equal", equal);
         return B;
     }
@@ -108,6 +149,27 @@ public final class Checks {
     }
 
     public static void checkSVD(MatrixD B, MatrixD Q, MatrixD A_expected, double tolerance) {
+        checkSVD(B, Q, A_expected, tolerance, ABS_TOL_FACTOR);
+    }
+
+    /**
+     * As {@link #checkSVD(MatrixD, MatrixD, MatrixD, double)}, but with an
+     * explicit absolute tolerance floor.
+     *
+     * @param B
+     *            the factor {@code B} of the decomposition
+     * @param Q
+     *            the approximate basis
+     * @param A_expected
+     *            the matrix that was decomposed
+     * @param tolerance
+     *            the relative tolerance
+     * @param absTolFactor
+     *            the fraction of {@code ||A_expected||_F} to use as the
+     *            absolute floor
+     */
+    public static void checkSVD(MatrixD B, MatrixD Q, MatrixD A_expected, double tolerance,
+            double absTolFactor) {
         MatrixD A_approx = null;
         SvdD svdReduced = B.svd(true);
 
@@ -136,7 +198,8 @@ public final class Checks {
             A_approx = U_approx.timesTimes(Sigma, Vt);
         }
 
-        boolean equal = Matrices.approxEqual(A_approx, A_expected, tolerance, absTol(A_expected));
+        boolean equal = Matrices.approxEqual(A_approx, A_expected, tolerance,
+                absTol(A_expected, absTolFactor));
         assertTrue("A and reconstruction of A should be approximately equal", equal);
     }
 

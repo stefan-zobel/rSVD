@@ -30,6 +30,44 @@ public class RanPowerIterationTest {
     // this one must have a very generous tolerance and hand-picked q values to
     // pass
     private static final double TOLERANCE = 1.0e-2;
+    /**
+     * Absolute tolerance floor for this class, as a fraction of
+     * {@code ||A||_F}.
+     * <p>
+     * Algorithm 4.3 raises the ratio {@code sigma_1 / sigma_min} of the input
+     * to the power {@code 2 * q + 1}, so its accuracy depends strongly on the
+     * spectrum of the test matrix. The uniform cases are the demanding ones:
+     * {@code Matrices.randomUniformD} draws from {@code [0, 1)}, so the matrix
+     * carries a dominant rank one component - its mean - and reaches a ratio
+     * around 114, against about 10 for a standard normal matrix.
+     * <p>
+     * Measured over 900 decompositions of uniform matrices at {@code q = 2},
+     * the largest elementwise error of the reconstruction was
+     * {@code 1.7e-9 * ||A||_F} with a median of {@code 5.6e-10 * ||A||_F},
+     * against at most {@code 9e-12 * ||A||_F} for the natural number and
+     * standard normal cases. The default floor of {@code Checks.absTol} is
+     * calibrated for the accurate algorithms and sits at {@code 1e-10}, which
+     * this class exceeds in about 2.5 % of all runs. This floor carries a
+     * factor of about 6 of headroom over the measured worst case and leaves
+     * the strictest assertion at 6 % of its budget, while the class already
+     * accepts a relative tolerance of one percent.
+     */
+    private static final double ABS_TOL_FACTOR = 1.0e-8;
+    /**
+     * Seed for the test matrix of the algorithm, so that a failure can be
+     * reproduced.
+     * <p>
+     * Unlike {@code AdaRangeFinderTest} this class has no
+     * {@code testSameSeedGivesSameResult}: for this algorithm such a test
+     * cannot say anything. Two runs with the same seed return bases that
+     * differ by 0.5 in single entries, because the surplus QR columns beyond
+     * the rank of the input are round-off, and their reconstructions agree to
+     * about 1e-9 * ||A||_F - which two <em>different</em> seeds do as well,
+     * since both approximate the same matrix. The seed pins the input of the
+     * algorithm, which is what makes a red run reproducible; it does not pin
+     * the basis.
+     */
+    private static final long SEED = 7L;
 
     @Test
     public void testNaturalNumbersTall() {
@@ -39,8 +77,8 @@ public class RanPowerIterationTest {
         MatrixD A = Matrices.naturalNumbersD(m, n);
         Checks.assertTall(A);
         MatrixD Q = getQ(A, estimatedRank, q);
-        MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
-        Checks.checkSVD(B, Q, A, TOLERANCE);
+        MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE, ABS_TOL_FACTOR);
+        Checks.checkSVD(B, Q, A, TOLERANCE, ABS_TOL_FACTOR);
     }
 
     @Test
@@ -51,8 +89,8 @@ public class RanPowerIterationTest {
         MatrixD A = Matrices.naturalNumbersD(n, m);
         Checks.assertWide(A);
         MatrixD Q = getQ(A, estimatedRank, q);
-        MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
-        Checks.checkSVD(B, Q, A, TOLERANCE);
+        MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE, ABS_TOL_FACTOR);
+        Checks.checkSVD(B, Q, A, TOLERANCE, ABS_TOL_FACTOR);
     }
 
     @Test
@@ -60,11 +98,11 @@ public class RanPowerIterationTest {
         int q = 3;
         // high rank random noise
         int estimatedRank = Math.min(m, n);
-        MatrixD A = Matrices.randomNormalD(m, n);
+        MatrixD A = Matrices.randomNormalD(m, n, 1L);
         Checks.assertTall(A);
         MatrixD Q = getQ(A, estimatedRank, q);
-        MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
-        Checks.checkSVD(B, Q, A, TOLERANCE);
+        MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE, ABS_TOL_FACTOR);
+        Checks.checkSVD(B, Q, A, TOLERANCE, ABS_TOL_FACTOR);
     }
 
     @Test
@@ -72,11 +110,11 @@ public class RanPowerIterationTest {
         int q = 3;
         // high rank random noise
         int estimatedRank = Math.min(m, n);
-        MatrixD A = Matrices.randomNormalD(n, m);
+        MatrixD A = Matrices.randomNormalD(n, m, 2L);
         Checks.assertWide(A);
         MatrixD Q = getQ(A, estimatedRank, q);
-        MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
-        Checks.checkSVD(B, Q, A, TOLERANCE);
+        MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE, ABS_TOL_FACTOR);
+        Checks.checkSVD(B, Q, A, TOLERANCE, ABS_TOL_FACTOR);
     }
 
     @Test
@@ -84,11 +122,11 @@ public class RanPowerIterationTest {
         int q = 2;
         // high rank random noise
         int estimatedRank = Math.min(m, n);
-        MatrixD A = Matrices.randomUniformD(m, n);
+        MatrixD A = Matrices.randomUniformD(m, n, 3L);
         Checks.assertTall(A);
         MatrixD Q = getQ(A, estimatedRank, q);
-        MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
-        Checks.checkSVD(B, Q, A, TOLERANCE);
+        MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE, ABS_TOL_FACTOR);
+        Checks.checkSVD(B, Q, A, TOLERANCE, ABS_TOL_FACTOR);
     }
 
     @Test
@@ -96,14 +134,14 @@ public class RanPowerIterationTest {
         int q = 2;
         // high rank random noise
         int estimatedRank = Math.min(m, n);
-        MatrixD A = Matrices.randomUniformD(n, m);
+        MatrixD A = Matrices.randomUniformD(n, m, 4L);
         Checks.assertWide(A);
         MatrixD Q = getQ(A, estimatedRank, q);
-        MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
-        Checks.checkSVD(B, Q, A, TOLERANCE);
+        MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE, ABS_TOL_FACTOR);
+        Checks.checkSVD(B, Q, A, TOLERANCE, ABS_TOL_FACTOR);
     }
 
     private MatrixD getQ(MatrixD A, int estimatedRank, int q) {
-        return new RanPowerIteration(A, estimatedRank, q).computeQ();
+        return new RanPowerIteration(A, estimatedRank, q, SEED).computeQ();
     }
 }
