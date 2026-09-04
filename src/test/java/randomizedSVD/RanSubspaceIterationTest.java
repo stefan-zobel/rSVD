@@ -15,6 +15,8 @@
  */
 package randomizedSVD;
 
+import static org.junit.Assert.assertTrue;
+
 import net.jamu.matrix.Matrices;
 import net.jamu.matrix.MatrixD;
 
@@ -38,6 +40,7 @@ public class RanSubspaceIterationTest {
         MatrixD A = Matrices.naturalNumbersD(m, n);
         Checks.assertTall(A);
         MatrixD Q = getQ(A, estimatedRank, q);
+        Checks.assertOrthonormal(Q);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
         Checks.checkSVD(B, Q, A, TOLERANCE);
     }
@@ -49,6 +52,7 @@ public class RanSubspaceIterationTest {
         MatrixD A = Matrices.naturalNumbersD(n, m);
         Checks.assertWide(A);
         MatrixD Q = getQ(A, estimatedRank, q);
+        Checks.assertOrthonormal(Q);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
         Checks.checkSVD(B, Q, A, TOLERANCE);
     }
@@ -60,6 +64,7 @@ public class RanSubspaceIterationTest {
         MatrixD A = Matrices.randomNormalD(m, n);
         Checks.assertTall(A);
         MatrixD Q = getQ(A, estimatedRank, q);
+        Checks.assertOrthonormal(Q);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
         Checks.checkSVD(B, Q, A, TOLERANCE);
     }
@@ -71,6 +76,7 @@ public class RanSubspaceIterationTest {
         MatrixD A = Matrices.randomNormalD(n, m);
         Checks.assertWide(A);
         MatrixD Q = getQ(A, estimatedRank, q);
+        Checks.assertOrthonormal(Q);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
         Checks.checkSVD(B, Q, A, TOLERANCE);
     }
@@ -82,6 +88,7 @@ public class RanSubspaceIterationTest {
         MatrixD A = Matrices.randomUniformD(m, n);
         Checks.assertTall(A);
         MatrixD Q = getQ(A, estimatedRank, q);
+        Checks.assertOrthonormal(Q);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
         Checks.checkSVD(B, Q, A, TOLERANCE);
     }
@@ -93,8 +100,48 @@ public class RanSubspaceIterationTest {
         MatrixD A = Matrices.randomUniformD(n, m);
         Checks.assertWide(A);
         MatrixD Q = getQ(A, estimatedRank, q);
+        Checks.assertOrthonormal(Q);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
         Checks.checkSVD(B, Q, A, TOLERANCE);
+    }
+
+    @Test
+    public void testSinglePowerIteration() {
+        // q == 1 skips the sweep entirely, so the very first decomposition is
+        // also the last one. It used to be an LU whenever the sketch was wider
+        // than tall, and the basis returned for a nearly square matrix then
+        // deviated from orthonormality by 2.5e+01 instead of 1.3e-15
+        MatrixD A = Matrices.randomNormalD(150, 145, 13L);
+        MatrixD Q = getQ(A, 145, 1);
+        Checks.assertOrthonormal(Q);
+        Checks.checkFactorization(Q, A, TOLERANCE);
+    }
+
+    @Test
+    public void testNearlySquare() {
+        // the sketch width used to exceed the row count of Y here. This class
+        // did not throw like the other two, it silently fell back to LU
+        for (int[] shape : new int[][] { { 150, 145 }, { 145, 150 }, { 150, 150 } }) {
+            int rows = shape[0];
+            int cols = shape[1];
+            MatrixD A = Matrices.randomNormalD(rows, cols, rows + cols);
+            MatrixD Q = getQ(A, Math.min(rows, cols), q);
+            Checks.assertOrthonormal(Q);
+            assertTrue("Q has " + Q.numColumns() + " columns for a " + rows + "x" + cols + " matrix",
+                    Q.numColumns() <= Math.max(rows, cols));
+            Checks.checkFactorization(Q, A, TOLERANCE);
+        }
+    }
+
+    @Test
+    public void testEstimatedRankTooLarge() {
+        // a rank beyond min(rows, columns) cannot exist, so it is capped rather
+        // than allowed to blow up the sketch
+        MatrixD A = Matrices.randomNormalD(60, 40, 12L);
+        MatrixD Q = getQ(A, 1000, q);
+        Checks.assertOrthonormal(Q);
+        assertTrue("Q has " + Q.numColumns() + " columns", Q.numColumns() <= 60);
+        Checks.checkFactorization(Q, A, TOLERANCE);
     }
 
     private MatrixD getQ(MatrixD A, int estimatedRank, int q) {
