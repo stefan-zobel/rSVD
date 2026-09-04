@@ -104,6 +104,61 @@ public final class Checks {
                 A.numRows() < A.numColumns());
     }
 
+    /**
+     * Absolute tolerance for the deviation of {@code Q' * Q} from the identity.
+     * <p>
+     * Measured across all four algorithms and all tested shapes, the largest
+     * deviation is 2.0e-15, so this floor carries five orders of headroom. It
+     * is still far below what a basis that is not orthonormal at all produces:
+     * the LU fallback that {@code RanSubspaceIteration} used to return for
+     * {@code q == 1} deviated by 2.5e+01.
+     */
+    private static final double ORTHO_TOLERANCE = 1.0e-10;
+
+    /**
+     * Asserts that the columns of {@code Q} are orthonormal, i.e. that
+     * {@code Q' * Q} is the identity.
+     * <p>
+     * Returning an orthonormal basis is the entire contract of these
+     * algorithms, yet a basis that is not orthonormal still reconstructs
+     * {@code A} well enough to pass a factorization check in some cases, so it
+     * has to be asserted separately.
+     *
+     * @param Q
+     *            the basis to check
+     */
+    public static void assertOrthonormal(MatrixD Q) {
+        assertOrthonormal(Q, ORTHO_TOLERANCE);
+    }
+
+    /**
+     * As {@link #assertOrthonormal(MatrixD)}, but with an explicit tolerance.
+     *
+     * @param Q
+     *            the basis to check
+     * @param tolerance
+     *            the largest acceptable deviation of {@code Q' * Q} from the
+     *            identity
+     */
+    public static void assertOrthonormal(MatrixD Q, double tolerance) {
+        MatrixD QtQ = Q.transpose().times(Q);
+        double worst = 0.0;
+        int worstRow = 0;
+        int worstCol = 0;
+        for (int i = 0; i < QtQ.numRows(); ++i) {
+            for (int j = 0; j < QtQ.numColumns(); ++j) {
+                double deviation = Math.abs(QtQ.get(i, j) - ((i == j) ? 1.0 : 0.0));
+                if (deviation > worst) {
+                    worst = deviation;
+                    worstRow = i;
+                    worstCol = j;
+                }
+            }
+        }
+        assertTrue("the columns of Q should be orthonormal, but Q' * Q deviates from the identity by " + worst
+                + " at (" + worstRow + ", " + worstCol + ")", worst <= tolerance);
+    }
+
     public static MatrixD checkFactorization(MatrixD Q, MatrixD A, double tolerance) {
         return checkFactorization(Q, A, tolerance, ABS_TOL_FACTOR);
     }

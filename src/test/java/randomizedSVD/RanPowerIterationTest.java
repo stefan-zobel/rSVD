@@ -15,6 +15,8 @@
  */
 package randomizedSVD;
 
+import static org.junit.Assert.assertTrue;
+
 import net.jamu.matrix.Matrices;
 import net.jamu.matrix.MatrixD;
 
@@ -77,6 +79,7 @@ public class RanPowerIterationTest {
         MatrixD A = Matrices.naturalNumbersD(m, n);
         Checks.assertTall(A);
         MatrixD Q = getQ(A, estimatedRank, q);
+        Checks.assertOrthonormal(Q);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE, ABS_TOL_FACTOR);
         Checks.checkSVD(B, Q, A, TOLERANCE, ABS_TOL_FACTOR);
     }
@@ -89,6 +92,7 @@ public class RanPowerIterationTest {
         MatrixD A = Matrices.naturalNumbersD(n, m);
         Checks.assertWide(A);
         MatrixD Q = getQ(A, estimatedRank, q);
+        Checks.assertOrthonormal(Q);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE, ABS_TOL_FACTOR);
         Checks.checkSVD(B, Q, A, TOLERANCE, ABS_TOL_FACTOR);
     }
@@ -101,6 +105,7 @@ public class RanPowerIterationTest {
         MatrixD A = Matrices.randomNormalD(m, n, 1L);
         Checks.assertTall(A);
         MatrixD Q = getQ(A, estimatedRank, q);
+        Checks.assertOrthonormal(Q);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE, ABS_TOL_FACTOR);
         Checks.checkSVD(B, Q, A, TOLERANCE, ABS_TOL_FACTOR);
     }
@@ -113,6 +118,7 @@ public class RanPowerIterationTest {
         MatrixD A = Matrices.randomNormalD(n, m, 2L);
         Checks.assertWide(A);
         MatrixD Q = getQ(A, estimatedRank, q);
+        Checks.assertOrthonormal(Q);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE, ABS_TOL_FACTOR);
         Checks.checkSVD(B, Q, A, TOLERANCE, ABS_TOL_FACTOR);
     }
@@ -125,6 +131,7 @@ public class RanPowerIterationTest {
         MatrixD A = Matrices.randomUniformD(m, n, 3L);
         Checks.assertTall(A);
         MatrixD Q = getQ(A, estimatedRank, q);
+        Checks.assertOrthonormal(Q);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE, ABS_TOL_FACTOR);
         Checks.checkSVD(B, Q, A, TOLERANCE, ABS_TOL_FACTOR);
     }
@@ -137,8 +144,37 @@ public class RanPowerIterationTest {
         MatrixD A = Matrices.randomUniformD(n, m, 4L);
         Checks.assertWide(A);
         MatrixD Q = getQ(A, estimatedRank, q);
+        Checks.assertOrthonormal(Q);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE, ABS_TOL_FACTOR);
         Checks.checkSVD(B, Q, A, TOLERANCE, ABS_TOL_FACTOR);
+    }
+
+    @Test
+    public void testNearlySquare() {
+        // the sketch width used to exceed the row count of Y here, which the QR
+        // cannot factor. The 220 x 150 shapes above are just far enough apart
+        // to hide that: 150 + 10 is still below 220
+        for (int[] shape : new int[][] { { 150, 145 }, { 145, 150 }, { 150, 150 } }) {
+            int rows = shape[0];
+            int cols = shape[1];
+            MatrixD A = Matrices.randomNormalD(rows, cols, rows + cols);
+            MatrixD Q = getQ(A, Math.min(rows, cols), 2);
+            Checks.assertOrthonormal(Q);
+            assertTrue("Q has " + Q.numColumns() + " columns for a " + rows + "x" + cols + " matrix",
+                    Q.numColumns() <= Math.max(rows, cols));
+            Checks.checkFactorization(Q, A, TOLERANCE, ABS_TOL_FACTOR);
+        }
+    }
+
+    @Test
+    public void testEstimatedRankTooLarge() {
+        // a rank beyond min(rows, columns) cannot exist, so it is capped rather
+        // than allowed to blow up the sketch
+        MatrixD A = Matrices.randomNormalD(60, 40, 12L);
+        MatrixD Q = getQ(A, 1000, 2);
+        Checks.assertOrthonormal(Q);
+        assertTrue("Q has " + Q.numColumns() + " columns", Q.numColumns() <= 60);
+        Checks.checkFactorization(Q, A, TOLERANCE, ABS_TOL_FACTOR);
     }
 
     private MatrixD getQ(MatrixD A, int estimatedRank, int q) {

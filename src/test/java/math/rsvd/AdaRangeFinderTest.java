@@ -34,8 +34,6 @@ public class AdaRangeFinderTest {
     // the adaptive algorithm has quite good tolerance even for matrices which
     // are not that large
     private static final double TOLERANCE = 1.0e-7;
-    // the measured deviation of Q' * Q from the identity is around 2.0e-15
-    private static final double ORTHO_TOLERANCE = 1.0e-10;
     // seeding the input matrix alone would not be enough: the algorithm draws
     // its own test vectors, so the finder has to be seeded as well
     private static final long SEED = 7L;
@@ -96,14 +94,7 @@ public class AdaRangeFinderTest {
 
     @Test
     public void testOrthonormalColumns() {
-        MatrixD Q = getQ(Matrices.randomNormalD(m, n, 5L));
-        MatrixD QtQ = Q.transpose().times(Q);
-        for (int i = 0; i < QtQ.numRows(); ++i) {
-            for (int j = 0; j < QtQ.numColumns(); ++j) {
-                double expected = (i == j) ? 1.0 : 0.0;
-                assertEquals(expected, QtQ.get(i, j), ORTHO_TOLERANCE);
-            }
-        }
+        Checks.assertOrthonormal(getQ(Matrices.randomNormalD(m, n, 5L)));
     }
 
     @Test
