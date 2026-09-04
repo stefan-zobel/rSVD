@@ -108,11 +108,62 @@ public class AdaRangeFinderTest {
 
     @Test
     public void testScaleInvariance() {
-        int k1 = getQ(Matrices.naturalNumbersD(m, n)).numColumns();
-        int k2 = getQ(Matrices.naturalNumbersD(m, n).scaleInplace(1.0e8)).numColumns();
         // the natural numbers matrix has rank 2 no matter how it is scaled
-        assertEquals(2, k1);
-        assertEquals(k1, k2);
+        assertEquals(2, getQ(Matrices.naturalNumbersD(m, n)).numColumns());
+        assertEquals(2, getQ(Matrices.naturalNumbersD(m, n).scaleInplace(1.0e8)).numColumns());
+        // scaling down used to collapse the rank and eventually return null,
+        // because the guard against a numerically zero vector was an absolute
+        // comparison against the machine epsilon while the stopping criterion
+        // is relative to ||A||_F. Measured, the rank is now recovered all the
+        // way down to the scale at which the entries of A themselves turn
+        // denormal, which for this matrix is below a factor of about 1.0e-308
+        assertEquals(2, getQ(Matrices.naturalNumbersD(m, n).scaleInplace(1.0e-8)).numColumns());
+        assertEquals(2, getQ(Matrices.naturalNumbersD(m, n).scaleInplace(1.0e-100)).numColumns());
+        assertEquals(2, getQ(Matrices.naturalNumbersD(m, n).scaleInplace(1.0e-200)).numColumns());
+    }
+
+    @Test
+    public void testRankIsNotOvershot() {
+        // the loop test used to run on the norms of the unprojected test
+        // vectors, which spent one column too many whenever a single column
+        // already sufficed. Measured, the residual after the first column of a
+        // rank 1 matrix is around 1.0e-14 while the bound is around 5.0e-3, so
+        // the column count is a deterministic decision with a wide margin
+        for (int rank = 1; rank <= 8; ++rank) {
+            MatrixD A = Matrices.randomNormalD(60, rank, rank)
+                    .times(Matrices.randomNormalD(rank, 40, rank + 1000L));
+            assertEquals("exact rank " + rank + " input", rank, getQ(A).numColumns());
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testZeroMatrixRejected() {
+        // the range of the zero matrix is the zero subspace, which cannot be
+        // represented: jamu has no matrix with zero columns
+        new AdaRangeFinder(Matrices.createD(m, n), AdaRangeFinder.DEFAULT_EPSILON, SEED);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testNaNMatrixRejected() {
+        MatrixD A = Matrices.randomNormalD(m, n, 8L);
+        A.set(3, 3, Double.NaN);
+        new AdaRangeFinder(A, AdaRangeFinder.DEFAULT_EPSILON, SEED);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testInfiniteMatrixRejected() {
+        MatrixD A = Matrices.randomNormalD(m, n, 9L);
+        A.set(3, 3, Double.POSITIVE_INFINITY);
+        new AdaRangeFinder(A, AdaRangeFinder.DEFAULT_EPSILON, SEED);
+    }
+
+    @Test(expected = ArithmeticException.class)
+    public void testUnderflowingMatrixThrows() {
+        // ||A||_F is the smallest positive double, so this matrix passes the
+        // constructor, but every product A * omega then underflows to zero
+        MatrixD A = Matrices.createD(m, n);
+        A.set(7, 3, Double.MIN_VALUE);
+        new AdaRangeFinder(A, AdaRangeFinder.DEFAULT_EPSILON, SEED).computeQ();
     }
 
     @Test

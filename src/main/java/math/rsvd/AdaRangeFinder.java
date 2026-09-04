@@ -47,6 +47,13 @@ public class AdaRangeFinder {
     private final int n;
     /** epsilon * ||A||_F / (10 * sqrt(2 / pi)) */
     private final double bound;
+    /**
+     * MACH_EPS_DBL * ||A||_F, below which a vector computed from {@code A} is
+     * indistinguishable from zero at working precision. Like {@link #bound}
+     * this is relative to the scale of {@code A}, so that no decision of this
+     * class depends on the absolute magnitude of the entries
+     */
+    private final double zeroTol;
     /** the numerical rank of A cannot exceed min(rows, columns) */
     private final int maxCols;
     /** whether {@link #seed} was supplied by the caller */
@@ -61,6 +68,8 @@ public class AdaRangeFinder {
      *
      * @param A
      *            the matrix whose approximate range is sought
+     * @throws IllegalArgumentException
+     *             if {@code ||A||_F} is not positive and finite
      */
     public AdaRangeFinder(MatrixD A) {
         this(A, DEFAULT_EPSILON);
@@ -72,7 +81,10 @@ public class AdaRangeFinder {
      * {@code epsilon * ||A||_F}, or as soon as {@code Q} has
      * {@code min(rows, columns)} columns, whichever happens first. The
      * criterion is relative to the Frobenius norm of {@code A} and is therefore
-     * invariant under a rescaling of {@code A}.
+     * invariant under a rescaling of {@code A}. That invariance holds as long
+     * as the entries of {@code A} stay in the normal range of a {@code double};
+     * once they turn denormal the products {@code A * omega} lose accuracy and
+     * fewer columns are found.
      *
      * @param A
      *            the matrix whose approximate range is sought
@@ -80,7 +92,8 @@ public class AdaRangeFinder {
      *            the relative accuracy target, must be in the range
      *            {@code (0.0, 1.0]}
      * @throws IllegalArgumentException
-     *             if {@code epsilon} is not in the range {@code (0.0, 1.0]}
+     *             if {@code epsilon} is not in the range {@code (0.0, 1.0]}, or
+     *             if {@code ||A||_F} is not positive and finite
      */
     public AdaRangeFinder(MatrixD A, double epsilon) {
         this(A, epsilon, false, 0L);
@@ -105,7 +118,8 @@ public class AdaRangeFinder {
      * @param seed
      *            the starting point of the sequence of test vectors
      * @throws IllegalArgumentException
-     *             if {@code epsilon} is not in the range {@code (0.0, 1.0]}
+     *             if {@code epsilon} is not in the range {@code (0.0, 1.0]}, or
+     *             if {@code ||A||_F} is not positive and finite
      */
     public AdaRangeFinder(MatrixD A, double epsilon, long seed) {
         this(A, epsilon, true, seed);
@@ -117,8 +131,17 @@ public class AdaRangeFinder {
         if (!(epsilon > 0.0 && epsilon <= 1.0)) {
             throw new IllegalArgumentException("epsilon: " + epsilon);
         }
+        double normF = A.normF();
+        // the negated comparison also rejects NaN. A zero matrix has to be
+        // rejected here because its range is the zero subspace, and a matrix
+        // with zero columns cannot be constructed
+        if (!(normF > 0.0 && normF < Double.POSITIVE_INFINITY)) {
+            throw new IllegalArgumentException(
+                    "the range of a matrix with ||A||_F = " + normF + " is not defined");
+        }
         this.n = A.numColumns();
-        this.bound = epsilon * A.normF() * BOUND_FACTOR;
+        this.bound = epsilon * normF * BOUND_FACTOR;
+        this.zeroTol = MACH_EPS_DBL * normF;
         this.maxCols = Math.min(A.numRows(), A.numColumns());
         this.seeded = seeded;
         this.seed = seed;
@@ -181,6 +204,18 @@ public class AdaRangeFinder {
         Q.multAdd(-1.0, c, y);
     }
 
+    /**
+     * Computes a matrix {@code Q} with orthonormal columns whose range
+     * approximates the range of {@code A} to the accuracy target given at
+     * construction time. {@code Q} has at least one and at most
+     * {@code min(rows, columns)} columns and is never {@code null}.
+     *
+     * @return an orthonormal basis of the approximate range of {@code A}
+     * @throws ArithmeticException
+     *             if the products {@code A * omega} underflow to zero, which
+     *             can only happen for a matrix whose nonzero entries are all
+     *             denormal
+     */
     public MatrixD computeQ() {
 
         // a local seed sequence keeps computeQ() idempotent and reentrant
@@ -193,11 +228,14 @@ public class AdaRangeFinder {
 
         MatrixD y = vectors.get(0);
         double norm = norm(y);
-        if (norm <= MACH_EPS_DBL) {
-            // this also covers the case of a zero matrix (where bound == 0.0)
-            return null;
+        if (norm <= zeroTol) {
+            // A itself is nonzero, the constructor rejects a zero matrix, so
+            // the product A * omega must have underflowed. There is no basis
+            // to return in that case: a matrix with zero columns cannot be
+            // constructed, and normalizing y would divide by zero
+            throw new ArithmeticException(
+                    "A * omega underflowed to " + norm + " for ||A||_F = " + A.normF());
         }
-        double max = getMax(vectors);
 
         MatrixD q = Matrices.sameDimD(y);
         q = y.scale(1.0 / norm, q);
@@ -205,6 +243,13 @@ public class AdaRangeFinder {
         MatrixD Q = q.copy();
 
         shift(vectors, q, Q, seeds);
+
+        // the loop test has to see the test vectors in the state they are in
+        // now, that is projected onto the orthogonal complement of the range of
+        // the Q that has just been built. Taking the maximum before the shift
+        // above would compare unprojected norms against the bound and would
+        // always spend one iteration too many
+        double max = getMax(vectors);
 
         // stop as soon as the residual estimate has dropped below
         // epsilon * ||A||_F / (10 * sqrt(2 / pi)), and never use more columns
@@ -218,7 +263,7 @@ public class AdaRangeFinder {
             project(Q, y);
 
             norm = norm(y);
-            if (norm <= MACH_EPS_DBL) {
+            if (norm <= zeroTol) {
                 break;
             }
             q = y.scale(1.0 / norm, q);
