@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Stefan Zobel
+ * Copyright 2021, 2026 Stefan Zobel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -109,11 +109,7 @@ public class ApproximateBasisTest {
     }
 
     private void checkSVD(SVD svd, MatrixD A_expected, double tolerance) {
-        MatrixD U = svd.U;
-        MatrixD S = svd.S;
-        MatrixD Vt = svd.Vt;
-
-        MatrixD A_approx = U.timesTimes(S, Vt);
+        MatrixD A_approx = svd.reconstruct();
         boolean equal = Matrices.approxEqual(A_approx, A_expected, tolerance, Checks.absTol(A_expected));
         assertTrue("A and reconstruction of A should be approximately equal", equal);
     }

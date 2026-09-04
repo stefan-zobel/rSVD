@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Stefan Zobel
+ * Copyright 2021, 2026 Stefan Zobel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -119,8 +119,7 @@ public final class ApproximateBasis {
             // should never happen
             Vt = Vt.selectConsecutiveColumns(0, n - 1);
         }
-        MatrixD S = Matrices.diagD(U.numColumns(), Vt.numRows(), sigma);
-        return new SVD(U, S, Vt);
+        return new SVD(U, sigma, Vt);
     }
 
     private MatrixD[] computeBQ() {
