@@ -37,7 +37,8 @@ public class RanPowerIteration {
     private final MatrixD A;
     private final int m;
     private final int n;
-    private final int targetRank;
+    /** the number of columns of the random test matrix, see the constructor */
+    private final int sketchWidth;
     private final int q;
     /** whether {@link #seed} was supplied by the caller */
     private final boolean seeded;
@@ -52,7 +53,11 @@ public class RanPowerIteration {
      * @param A
      *            the matrix to decompose
      * @param estimatedRank
-     *            the target rank, must not be negative
+     *            the target rank, must not be negative. It is capped at
+     *            {@code min(rows, columns)}, and the width of the sketch is
+     *            capped in addition at {@code max(rows, columns)}, which is
+     *            the number of rows of {@code Y} and therefore the most a QR
+     *            decomposition can take
      * @param q
      *            the number of power iterations, must be at least 1
      */
@@ -78,7 +83,11 @@ public class RanPowerIteration {
      * @param A
      *            the matrix to decompose
      * @param estimatedRank
-     *            the target rank, must not be negative
+     *            the target rank, must not be negative. It is capped at
+     *            {@code min(rows, columns)}, and the width of the sketch is
+     *            capped in addition at {@code max(rows, columns)}, which is
+     *            the number of rows of {@code Y} and therefore the most a QR
+     *            decomposition can take
      * @param q
      *            the number of power iterations, must be at least 1
      * @param seed
@@ -98,7 +107,11 @@ public class RanPowerIteration {
         this.A = Objects.requireNonNull(A);
         this.m = A.numRows();
         this.n = A.numColumns();
-        this.targetRank = estimatedRank;
+        // the target rank is a statement about A and cannot exceed the largest
+        // rank A can have. The sketch is oversampled on top of that, but only
+        // up to the row count of Y, which is what a QR can still factor
+        int cappedRank = Math.min(estimatedRank, Math.min(m, n));
+        this.sketchWidth = Math.min(cappedRank + P, Math.max(m, n));
         this.q = q;
         this.seeded = seeded;
         this.seed = seed;
@@ -115,8 +128,8 @@ public class RanPowerIteration {
         // Y = (M * M')^q * M * Omega, formed by alternating multiplication as
         // the paper prescribes. Note that M * M' is never built: that would be
         // an m x m matrix costing O(m^3) per step, whereas applying M and M' to
-        // the columns of the sketch costs O(m * n * (targetRank + P))
-        MatrixD Y = M.times(nextTestMatrix(M.numColumns(), targetRank + P));
+        // the columns of the sketch costs O(m * n * sketchWidth)
+        MatrixD Y = M.times(nextTestMatrix(M.numColumns(), sketchWidth));
         for (int i = 0; i < q; ++i) {
             Y = MT.times(Y);
             Y = M.times(Y);

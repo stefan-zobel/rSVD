@@ -36,8 +36,26 @@ public class RanRangeFinder {
     private final MatrixD A;
     private final int m;
     private final int n;
-    private final int targetRank;
+    /** the number of columns of the random test matrix, see the constructor */
+    private final int sketchWidth;
 
+    /**
+     * Creates a range finder for {@code A}.
+     * <p>
+     * Both arguments are capped rather than rejected. {@code estimatedRank} is
+     * a statement about {@code A} and cannot exceed {@code min(rows, columns)},
+     * which is the largest rank {@code A} can have. The width of the sketch is
+     * capped in addition at {@code max(rows, columns)}: the sketch {@code Y}
+     * has that many rows in either shape branch, and a QR decomposition needs
+     * at least as many rows as columns.
+     *
+     * @param A
+     *            the matrix whose approximate range is sought
+     * @param estimatedRank
+     *            the target rank, must not be negative
+     * @throws IllegalArgumentException
+     *             if {@code estimatedRank} is negative
+     */
     public RanRangeFinder(MatrixD A, int estimatedRank) {
         if (estimatedRank < 0) {
             throw new IllegalArgumentException("negative target rank: " + estimatedRank);
@@ -45,17 +63,21 @@ public class RanRangeFinder {
         this.A = Objects.requireNonNull(A);
         this.m = A.numRows();
         this.n = A.numColumns();
-        this.targetRank = estimatedRank;
+        // the target rank is a statement about A and cannot exceed the largest
+        // rank A can have. The sketch is oversampled on top of that, but only
+        // up to the row count of Y, which is what a QR can still factor
+        int cappedRank = Math.min(estimatedRank, Math.min(m, n));
+        this.sketchWidth = Math.min(cappedRank + P, Math.max(m, n));
     }
 
     public MatrixD computeQ() {
         if (m >= n) {
-            MatrixD Omega = Matrices.randomNormalD(n, targetRank + P);
+            MatrixD Omega = Matrices.randomNormalD(n, sketchWidth);
             MatrixD Y = A.times(Omega);
             MatrixD Q = decompose(Y);
             return Q;
         } else {
-            MatrixD Omega = Matrices.randomNormalD(targetRank + P, m);
+            MatrixD Omega = Matrices.randomNormalD(sketchWidth, m);
             MatrixD Y = Omega.times(A).transpose();
             MatrixD Q = decompose(Y);
             return Q;
