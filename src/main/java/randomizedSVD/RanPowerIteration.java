@@ -53,7 +53,7 @@ public class RanPowerIteration {
      * @param A
      *            the matrix to decompose
      * @param estimatedRank
-     *            the target rank, must not be negative. It is capped at
+     *            the target rank, must be at least 1. It is capped at
      *            {@code min(rows, columns)}, and the width of the sketch is
      *            capped in addition at {@code max(rows, columns)}, which is
      *            the number of rows of {@code Y} and therefore the most a QR
@@ -83,7 +83,7 @@ public class RanPowerIteration {
      * @param A
      *            the matrix to decompose
      * @param estimatedRank
-     *            the target rank, must not be negative. It is capped at
+     *            the target rank, must be at least 1. It is capped at
      *            {@code min(rows, columns)}, and the width of the sketch is
      *            capped in addition at {@code max(rows, columns)}, which is
      *            the number of rows of {@code Y} and therefore the most a QR
@@ -98,8 +98,8 @@ public class RanPowerIteration {
     }
 
     private RanPowerIteration(MatrixD A, int estimatedRank, int q, boolean seeded, long seed) {
-        if (estimatedRank < 0) {
-            throw new IllegalArgumentException("negative target rank: " + estimatedRank);
+        if (estimatedRank < 1) {
+            throw new IllegalArgumentException("target rank must be at least 1, but was " + estimatedRank);
         }
         if (q < 1) {
             throw new IllegalArgumentException("q must be at least 1. q = " + q);

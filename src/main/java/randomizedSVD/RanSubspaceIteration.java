@@ -55,16 +55,16 @@ public class RanSubspaceIteration {
      * @param A
      *            the matrix whose approximate range is sought
      * @param estimatedRank
-     *            the target rank, must not be negative
+     *            the target rank, must be at least 1
      * @param q
      *            the number of subspace iterations, must be at least 1
      * @throws IllegalArgumentException
-     *             if {@code estimatedRank} is negative or {@code q} is less
+     *             if {@code estimatedRank} is less than 1 or {@code q} is less
      *             than 1
      */
     public RanSubspaceIteration(MatrixD A, int estimatedRank, int q) {
-        if (estimatedRank < 0) {
-            throw new IllegalArgumentException("negative target rank: " + estimatedRank);
+        if (estimatedRank < 1) {
+            throw new IllegalArgumentException("target rank must be at least 1, but was " + estimatedRank);
         }
         if (q < 1) {
             throw new IllegalArgumentException("q must be at least 1. q = " + q);

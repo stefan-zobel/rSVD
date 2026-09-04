@@ -95,6 +95,19 @@ public class ApproximateBasisTest {
         checkSVD(svd, A, TOLERANCE);
     }
 
+    @Test(expected = IllegalArgumentException.class)
+    public void testEstimatedRankZero() {
+        // a rank 0 subspace cannot be represented: jamu has no matrix with zero
+        // columns. Asking for it used to reach createSVD and fail there with
+        // "Illegal column index -1", which says nothing about the cause
+        new ApproximateBasis(Matrices.randomNormalD(60, 40, 1L), 0, SEED);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void testNullMatrixRejected() {
+        new ApproximateBasis(null, 2, SEED);
+    }
+
     private void checkSVD(SVD svd, MatrixD A_expected, double tolerance) {
         MatrixD U = svd.U;
         MatrixD S = svd.S;

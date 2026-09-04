@@ -129,6 +129,14 @@ public class RanRangeFinderTest {
         Checks.checkFactorization(Q, A, TOLERANCE);
     }
 
+    @Test(expected = IllegalArgumentException.class)
+    public void testEstimatedRankZero() {
+        // a rank 0 subspace cannot be represented: jamu has no matrix with zero
+        // columns, so asking for it is a caller error rather than something to
+        // silently turn into a basis of P columns
+        new RanRangeFinder(Matrices.randomNormalD(60, 40, 1L), 0);
+    }
+
     private MatrixD getQ(MatrixD A, int estimatedRank) {
         return new RanRangeFinder(A, estimatedRank).computeQ();
     }

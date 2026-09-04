@@ -15,6 +15,8 @@
  */
 package math.rsvd;
 
+import java.util.Objects;
+
 import net.jamu.matrix.Matrices;
 import net.jamu.matrix.MatrixD;
 import net.jamu.matrix.SvdD;
@@ -42,7 +44,9 @@ public final class ApproximateBasis {
      * @param A
      *            the matrix to decompose
      * @param estimatedRank
-     *            the target rank, must not be negative
+     *            the target rank, must be at least 1
+     * @throws IllegalArgumentException
+     *             if {@code estimatedRank} is less than 1
      */
     public ApproximateBasis(MatrixD A, int estimatedRank) {
         this(A, estimatedRank, false, 0L);
@@ -56,22 +60,24 @@ public final class ApproximateBasis {
      * @param A
      *            the matrix to decompose
      * @param estimatedRank
-     *            the target rank, must not be negative
+     *            the target rank, must be at least 1
      * @param seed
      *            the seed for the random test matrix
+     * @throws IllegalArgumentException
+     *             if {@code estimatedRank} is less than 1
      */
     public ApproximateBasis(MatrixD A, int estimatedRank, long seed) {
         this(A, estimatedRank, true, seed);
     }
 
     private ApproximateBasis(MatrixD A, int estimatedRank, boolean seeded, long seed) {
-        if (estimatedRank < 0) {
-            throw new IllegalArgumentException("estimatedRank: " + estimatedRank);
+        if (estimatedRank < 1) {
+            throw new IllegalArgumentException("target rank must be at least 1, but was " + estimatedRank);
         }
+        this.A = Objects.requireNonNull(A);
         m = A.numRows();
         n = A.numColumns();
         transpose = (m < n) ? true : false;
-        this.A = A;
         targetRank = Math.min(estimatedRank, Math.min(m, n));
         this.seeded = seeded;
         this.seed = seed;

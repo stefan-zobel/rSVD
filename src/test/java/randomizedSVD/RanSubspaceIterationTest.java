@@ -144,6 +144,14 @@ public class RanSubspaceIterationTest {
         Checks.checkFactorization(Q, A, TOLERANCE);
     }
 
+    @Test(expected = IllegalArgumentException.class)
+    public void testEstimatedRankZero() {
+        // a rank 0 subspace cannot be represented: jamu has no matrix with zero
+        // columns, so asking for it is a caller error rather than something to
+        // silently turn into a basis of P columns
+        new RanSubspaceIteration(Matrices.randomNormalD(60, 40, 1L), 0, q);
+    }
+
     private MatrixD getQ(MatrixD A, int estimatedRank, int q) {
         return new RanSubspaceIteration(A, estimatedRank, q).computeQ();
     }

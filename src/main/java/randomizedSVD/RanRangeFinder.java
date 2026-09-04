@@ -52,13 +52,13 @@ public class RanRangeFinder {
      * @param A
      *            the matrix whose approximate range is sought
      * @param estimatedRank
-     *            the target rank, must not be negative
+     *            the target rank, must be at least 1
      * @throws IllegalArgumentException
-     *             if {@code estimatedRank} is negative
+     *             if {@code estimatedRank} is less than 1
      */
     public RanRangeFinder(MatrixD A, int estimatedRank) {
-        if (estimatedRank < 0) {
-            throw new IllegalArgumentException("negative target rank: " + estimatedRank);
+        if (estimatedRank < 1) {
+            throw new IllegalArgumentException("target rank must be at least 1, but was " + estimatedRank);
         }
         this.A = Objects.requireNonNull(A);
         this.m = A.numRows();
