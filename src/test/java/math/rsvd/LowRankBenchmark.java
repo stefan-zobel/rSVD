@@ -63,6 +63,13 @@ public final class LowRankBenchmark {
     private static final int WARMUP = 3;
     private static final int ITERATIONS = 11;
     private static final long SEED = 7L;
+    /** the block sizes compared against the column-by-column range finder */
+    private static final int[] BLOCK_SIZES = { 8, 16, 32 };
+    /**
+     * The block size the completed-to-an-SVD row uses. Sixteen because it was
+     * the only one measured that never lost against the column-by-column path.
+     */
+    private static final int COMPLETION_BLOCK_SIZE = 16;
 
     /** what a contender produced. Building the approximation is not timed. */
     private interface Result {
@@ -135,7 +142,7 @@ public final class LowRankBenchmark {
         String againstSignal = (signal == null) ? "-"
                 : String.format("%.2e", relativeError(signal, approximation));
         Arrays.sort(milliseconds);
-        System.out.printf("  %-46s %8.1f %8.1f %7d %11.2e %11s%n", label, median(milliseconds), milliseconds[0],
+        System.out.printf("  %-54s %8.1f %8.1f %7d %11.2e %11s%n", label, median(milliseconds), milliseconds[0],
                 result.width(), relativeError(A, approximation), againstSignal);
     }
 
@@ -157,6 +164,20 @@ public final class LowRankBenchmark {
     }
 
     /**
+     * The same range finder with its samples processed a block at a time, which
+     * is the organization Remark 4.2 of the paper describes. It returns a few
+     * more columns than the column-by-column path, so the width column is worth
+     * reading next to the time.
+     */
+    private static Contender blockedRangeFinder(final double epsilon, final int blockSize) {
+        return new Contender() {
+            public Result run(MatrixD A) {
+                return new Basis(new AdaRangeFinder(A, epsilon, SEED).computeQ(blockSize));
+            }
+        };
+    }
+
+    /**
      * The range finder completed to a decomposition: project, decompose the
      * small matrix, lift the left factors back. This is the work a caller has to
      * do to get from {@code computeQ()} to something comparable with the other
@@ -167,6 +188,23 @@ public final class LowRankBenchmark {
         return new Contender() {
             public Result run(MatrixD A) {
                 MatrixD Q = new AdaRangeFinder(A, epsilon, SEED).computeQ();
+                SvdD small = Q.transpose().times(A).svdEcon();
+                return new Decomposition(new SVD(Q.times(small.getU()), small.getS(), small.getVt()));
+            }
+        };
+    }
+
+    /**
+     * The blocked range finder completed the same way. This is the row where
+     * the overshoot of the blocked path first costs something: the completion
+     * decomposes a {@code width x columns} matrix and lifts the left factors
+     * back, so both steps grow with the width of {@code Q}, and the blocked
+     * path returns a wider {@code Q} than the column-by-column one.
+     */
+    private static Contender blockedRangeFinderToSVD(final double epsilon, final int blockSize) {
+        return new Contender() {
+            public Result run(MatrixD A) {
+                MatrixD Q = new AdaRangeFinder(A, epsilon, SEED).computeQ(blockSize);
                 SvdD small = Q.transpose().times(A).svdEcon();
                 return new Decomposition(new SVD(Q.times(small.getU()), small.getS(), small.getVt()));
             }
@@ -195,7 +233,7 @@ public final class LowRankBenchmark {
         System.out.printf("  sigma[0] %.3e   sigma[%d] %.3e   sigma[%d] %.3e   sigma[%d] %.3e%n", spectrum[0],
                 rank - 1, spectrum[rank - 1], rank, spectrum[rank], spectrum.length - 1,
                 spectrum[spectrum.length - 1]);
-        System.out.printf("  %-46s %8s %8s %7s %11s %11s%n", "", "median", "best", "width", "err vs A",
+        System.out.printf("  %-54s %8s %8s %7s %11s %11s%n", "", "median", "best", "width", "err vs A",
                 "err vs sig");
 
         List<String> labels = new ArrayList<>();
@@ -204,9 +242,16 @@ public final class LowRankBenchmark {
         contenders.add(dense());
         labels.add("AdaRangeFinder(1e-03), Q only");
         contenders.add(rangeFinderOnly(1.0e-3));
+        for (int i = 0; i < BLOCK_SIZES.length; ++i) {
+            labels.add("AdaRangeFinder(1e-03).computeQ(" + BLOCK_SIZES[i] + "), Q only");
+            contenders.add(blockedRangeFinder(1.0e-3, BLOCK_SIZES[i]));
+        }
         for (int i = 0; i < epsilons.length; ++i) {
             labels.add(String.format("AdaRangeFinder(%.0e) completed to an SVD", epsilons[i]));
             contenders.add(rangeFinderToSVD(epsilons[i]));
+            labels.add(String.format("AdaRangeFinder(%.0e).computeQ(%d) completed to an SVD", epsilons[i],
+                    COMPLETION_BLOCK_SIZE));
+            contenders.add(blockedRangeFinderToSVD(epsilons[i], COMPLETION_BLOCK_SIZE));
         }
         labels.add("ApproximateBasis(" + rank + "), told the rank");
         contenders.add(fixedWidth(rank));
