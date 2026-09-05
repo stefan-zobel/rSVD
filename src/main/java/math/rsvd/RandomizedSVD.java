@@ -43,7 +43,6 @@ import net.jamu.matrix.SvdD;
  * failing at run time. {@code toRank(20).blockSize(16)} is not a mistake this
  * API can make: a block size belongs to the adaptive path and exists nowhere
  * else.
- * <p>
  *
  * <pre>
  * RandomizedSVD.of(A).findingTheRank().seed(7L).decompose();
