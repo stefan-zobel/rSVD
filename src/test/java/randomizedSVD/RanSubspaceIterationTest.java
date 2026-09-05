@@ -22,6 +22,8 @@ import net.jamu.matrix.MatrixD;
 
 import org.junit.Test;
 
+import math.rsvd.Checks;
+
 /**
  * This is the recommended algorithm for the fixed rank problem.
  */

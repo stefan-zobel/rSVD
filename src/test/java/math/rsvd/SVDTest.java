@@ -22,7 +22,6 @@ import static org.junit.Assert.assertTrue;
 
 import net.jamu.matrix.Matrices;
 import net.jamu.matrix.MatrixD;
-import randomizedSVD.Checks;
 
 import org.junit.Test;
 

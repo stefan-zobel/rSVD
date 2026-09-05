@@ -21,7 +21,6 @@ import org.junit.Test;
 
 import net.jamu.matrix.Matrices;
 import net.jamu.matrix.MatrixD;
-import randomizedSVD.Checks;
 
 public class ApproximateBasisTest {
 

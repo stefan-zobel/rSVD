@@ -22,6 +22,8 @@ import net.jamu.matrix.MatrixD;
 
 import org.junit.Test;
 
+import math.rsvd.Checks;
+
 public class RanRangeFinderTest {
 
     private static final int m = 220;

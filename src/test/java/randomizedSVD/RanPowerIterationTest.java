@@ -22,6 +22,8 @@ import net.jamu.matrix.MatrixD;
 
 import org.junit.Test;
 
+import math.rsvd.Checks;
+
 /**
  * Algorithm 4.3 has very poor accuracy.
  */
