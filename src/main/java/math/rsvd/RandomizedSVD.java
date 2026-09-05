@@ -161,14 +161,7 @@ public final class RandomizedSVD {
         }
     }
 
-    /**
-     * The adaptive path: a relative accuracy target, and the width follows.
-     * <p>
-     * This is the only path that offers {@link #basis()}. The fixed width and
-     * automatic paths go through {@link ApproximateBasis}, whose basis is not
-     * public and whose meaning depends on an internal flag, so offering it
-     * there would be a promise this library cannot yet keep.
-     */
+    /** The adaptive path: a relative accuracy target, and the width follows. */
     public static final class Accuracy {
 
         private final MatrixD A;
@@ -281,6 +274,25 @@ public final class RandomizedSVD {
         }
 
         /**
+         * Computes a matrix with orthonormal columns whose range approximates
+         * the range of {@code A}.
+         * <p>
+         * <b>Wider than the rank that was asked for</b>, by the oversampling of
+         * the method, so this and {@link #decompose()} do not agree in width.
+         * The oversampling is what makes the basis worth having, and dropping
+         * it here would not be honest arithmetic - see
+         * {@link ApproximateBasis#computeQ()}. The truncation to the requested
+         * rank belongs where the singular values are known, which is in the
+         * decomposition.
+         *
+         * @return the basis, never {@code null}
+         */
+        public MatrixD basis() {
+            return (seeded ? new ApproximateBasis(A, rank, seed) : new ApproximateBasis(A, rank))
+                    .computeQ();
+        }
+
+        /**
          * Computes the decomposition at the width that was asked for.
          *
          * @return the decomposition {@code A ~ U * S * Vt}
@@ -315,6 +327,23 @@ public final class RandomizedSVD {
             this.seeded = true;
             this.seed = seed;
             return this;
+        }
+
+        /**
+         * Computes a matrix with orthonormal columns whose range approximates
+         * the range of {@code A}, exactly as wide as the rank that was found.
+         * <p>
+         * This is the left factor of {@link #decompose()}, which is already an
+         * orthonormal basis and already truncated to the rank. Taking it costs
+         * nothing beyond the decomposition this path performs anyway, and it is
+         * the better basis: on this path the rank is the whole point, so a
+         * wider one carrying directions the threshold rejected would be worse,
+         * not more generous.
+         *
+         * @return the basis, never {@code null}
+         */
+        public MatrixD basis() {
+            return decompose().getU();
         }
 
         /**

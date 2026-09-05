@@ -197,12 +197,43 @@ public class RandomizedSVDTest {
     }
 
     @Test
-    public void testNystroemComposesWithTheFacade() {
+    public void testTheFixedWidthBasisMatchesTheConstructor() {
+        MatrixD A = signalPlusNoise(M, N, 9, 0.5, 161L);
+        for (int rank : new int[] { 3, 12, 40 }) {
+            MatrixD direct = new ApproximateBasis(A, rank, SEED).computeQ();
+            MatrixD viaFacade = RandomizedSVD.of(A).toRank(rank).seed(SEED).basis();
+            assertEquals("rank " + rank, direct.numColumns(), viaFacade.numColumns());
+            assertEquals("rank " + rank, M, viaFacade.numRows());
+            Checks.assertOrthonormal(viaFacade);
+            assertTrue("rank " + rank,
+                    Matrices.approxEqual(direct, viaFacade, TOLERANCE, Checks.absTol(direct)));
+        }
+    }
+
+    @Test
+    public void testTheAutomaticBasisIsTheLeftFactorOfTheDecomposition() {
+        MatrixD A = signalPlusNoise(M, N, 9, 0.5, 171L);
+        MatrixD direct = ApproximateBasis.decompose(A, SEED).getU();
+        MatrixD viaFacade = RandomizedSVD.of(A).findingTheRank().seed(SEED).basis();
+        assertEquals(direct.numColumns(), viaFacade.numColumns());
+        assertEquals(M, viaFacade.numRows());
+        Checks.assertOrthonormal(viaFacade);
+        // on this path the basis is exactly as wide as the rank that was found
+        assertEquals(RandomizedSVD.of(A).findingTheRank().seed(SEED).decompose().size(),
+                viaFacade.numColumns());
+    }
+
+    @Test
+    public void testNystroemComposesWithEveryPath() {
         MatrixD G = Matrices.randomNormalD(N, 8, 121L);
         MatrixD A = G.times(G.transpose());
-        SVD evd = Nystroem.decompose(A, RandomizedSVD.of(A).toAccuracy(1.0e-3).seed(SEED).basis());
-        assertEquals(8, evd.size());
-        assertTrue(Matrices.approxEqual(evd.reconstruct(), A, 1.0e-8, Checks.absTol(A)));
+        SVD byAccuracy = Nystroem.decompose(A, RandomizedSVD.of(A).toAccuracy(1.0e-3).seed(SEED).basis());
+        SVD byRank = Nystroem.decompose(A, RandomizedSVD.of(A).toRank(12).seed(SEED).basis());
+        SVD automatic = Nystroem.decompose(A, RandomizedSVD.of(A).findingTheRank().seed(SEED).basis());
+        for (SVD evd : new SVD[] { byAccuracy, byRank, automatic }) {
+            assertEquals(8, evd.size());
+            assertTrue(Matrices.approxEqual(evd.reconstruct(), A, 1.0e-8, Checks.absTol(A)));
+        }
     }
 
     @Test(expected = NullPointerException.class)
