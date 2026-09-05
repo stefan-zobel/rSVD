@@ -1,0 +1,278 @@
+/*
+ * Copyright 2021, 2026 Stefan Zobel
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package math.rsvd;
+
+import static org.junit.Assert.assertTrue;
+
+import net.jamu.matrix.Matrices;
+import net.jamu.matrix.MatrixD;
+import net.jamu.matrix.SvdD;
+
+public final class Checks {
+
+    /**
+     * Absolute tolerance floor, as a fraction of {@code ||A||_F}.
+     * <p>
+     * A purely relative elementwise comparison is meaningless close to zero: an
+     * entry that happens to land at 1.0e-12 would demand 1.0e-19 of absolute
+     * accuracy at a relative tolerance of 1.0e-7, which no correct
+     * implementation can deliver. The comparison is therefore anchored to the
+     * size of the matrix rather than to the size of the individual entry.
+     * <p>
+     * The value is measured, not guessed: over 1000 reconstructions of a
+     * 220 x 150 standard normal matrix the largest observed elementwise error
+     * was 2.0e-12 * ||A||_F, so this floor carries a factor of 50 of headroom
+     * while still being six orders of magnitude below the error a genuinely
+     * broken decomposition would produce.
+     * <p>
+     * This is the default. An algorithm that is deliberately much less
+     * accurate states its own floor through the overloads that take an
+     * explicit { absTolFactor}.
+     */
+    private static final double ABS_TOL_FACTOR = 1.0e-10;
+
+    /**
+     * The absolute tolerance floor to use when comparing against
+     * {@code expected}.
+     *
+     * @param expected
+     *            the reference matrix
+     * @return {@link #ABS_TOL_FACTOR} times the Frobenius norm of
+     *         {@code expected}
+     */
+    public static double absTol(MatrixD expected) {
+        return absTol(expected, ABS_TOL_FACTOR);
+    }
+
+    /**
+     * The absolute tolerance floor to use when comparing against
+     * {@code expected}, with an explicit factor.
+     * <p>
+     * A test class whose algorithm is much less accurate than
+     * {@link #ABS_TOL_FACTOR} assumes has to say so, rather than have the
+     * shared floor loosened for everybody.
+     *
+     * @param expected
+     *            the reference matrix
+     * @param absTolFactor
+     *            the fraction of {@code ||expected||_F} to use as the floor
+     * @return {@code absTolFactor} times the Frobenius norm of
+     *         {@code expected}
+     */
+    public static double absTol(MatrixD expected, double absTolFactor) {
+        return absTolFactor * expected.normF();
+    }
+
+    /**
+     * Asserts that {@code A} is tall, i.e. that it has more rows than columns.
+     * <p>
+     * The shape of a test matrix is decided by nothing but the order of two
+     * arguments and is therefore easy to get wrong by copy and paste. A test
+     * that ends up with the wrong shape does not fail, it silently duplicates
+     * its counterpart, so the shape is asserted instead of assumed.
+     *
+     * @param A
+     *            the test matrix
+     */
+    public static void assertTall(MatrixD A) {
+        assertTrue("this test needs a tall matrix, but got " + A.numRows() + "x" + A.numColumns(),
+                A.numRows() > A.numColumns());
+    }
+
+    /**
+     * Asserts that {@code A} is wide, i.e. that it has more columns than rows.
+     *
+     * @param A
+     *            the test matrix
+     * @see #assertTall(MatrixD)
+     */
+    public static void assertWide(MatrixD A) {
+        assertTrue("this test needs a wide matrix, but got " + A.numRows() + "x" + A.numColumns(),
+                A.numRows() < A.numColumns());
+    }
+
+    /**
+     * Absolute tolerance for the deviation of {@code Q' * Q} from the identity.
+     * <p>
+     * Measured across all four algorithms and all tested shapes, the largest
+     * deviation is 2.0e-15, so this floor carries five orders of headroom. It
+     * is still far below what a basis that is not orthonormal at all produces:
+     * the LU fallback that {@code RanSubspaceIteration} used to return for
+     * {@code q == 1} deviated by 2.5e+01.
+     */
+    private static final double ORTHO_TOLERANCE = 1.0e-10;
+
+    /**
+     * Asserts that the columns of {@code Q} are orthonormal, i.e. that
+     * {@code Q' * Q} is the identity.
+     * <p>
+     * Returning an orthonormal basis is the entire contract of these
+     * algorithms, yet a basis that is not orthonormal still reconstructs
+     * {@code A} well enough to pass a factorization check in some cases, so it
+     * has to be asserted separately.
+     *
+     * @param Q
+     *            the basis to check
+     */
+    public static void assertOrthonormal(MatrixD Q) {
+        assertOrthonormal(Q, ORTHO_TOLERANCE);
+    }
+
+    /**
+     * As {@link #assertOrthonormal(MatrixD)}, but with an explicit tolerance.
+     *
+     * @param Q
+     *            the basis to check
+     * @param tolerance
+     *            the largest acceptable deviation of {@code Q' * Q} from the
+     *            identity
+     */
+    public static void assertOrthonormal(MatrixD Q, double tolerance) {
+        MatrixD QtQ = Q.transpose().times(Q);
+        double worst = 0.0;
+        int worstRow = 0;
+        int worstCol = 0;
+        for (int i = 0; i < QtQ.numRows(); ++i) {
+            for (int j = 0; j < QtQ.numColumns(); ++j) {
+                double deviation = Math.abs(QtQ.get(i, j) - ((i == j) ? 1.0 : 0.0));
+                if (deviation > worst) {
+                    worst = deviation;
+                    worstRow = i;
+                    worstCol = j;
+                }
+            }
+        }
+        assertTrue("the columns of Q should be orthonormal, but Q' * Q deviates from the identity by " + worst
+                + " at (" + worstRow + ", " + worstCol + ")", worst <= tolerance);
+    }
+
+    public static MatrixD checkFactorization(MatrixD Q, MatrixD A, double tolerance) {
+        return checkFactorization(Q, A, tolerance, ABS_TOL_FACTOR);
+    }
+
+    /**
+     * As {@link #checkFactorization(MatrixD, MatrixD, double)}, but with an
+     * explicit absolute tolerance floor.
+     *
+     * @param Q
+     *            the approximate basis
+     * @param A
+     *            the matrix that was decomposed
+     * @param tolerance
+     *            the relative tolerance
+     * @param absTolFactor
+     *            the fraction of {@code ||A||_F} to use as the absolute floor
+     * @return the factor {@code B} of the decomposition
+     */
+    public static MatrixD checkFactorization(MatrixD Q, MatrixD A, double tolerance, double absTolFactor) {
+        MatrixD A_approx = null;
+        MatrixD B = null;
+
+        if (A.numRows() >= A.numColumns()) { // m >= n
+            B = Q.transpose().times(A);
+            A_approx = Q.times(B);
+        } else { // m < n
+            B = A.times(Q);
+            A_approx = B.times(Q.transpose());
+        }
+
+        boolean equal = Matrices.approxEqual(A_approx, A, tolerance, absTol(A, absTolFactor));
+        assertTrue("A_approx and A should be approximately equal", equal);
+        return B;
+    }
+
+    public static MatrixD checkFactorization2(MatrixD Q, MatrixD A, double tolerance) {
+        MatrixD B = Q.transpose().times(A);
+        MatrixD A_approx = Q.times(B);
+
+        boolean equal = Matrices.approxEqual(A_approx, A, tolerance, absTol(A));
+        assertTrue("A_approx and A should be approximately equal", equal);
+        return B;
+    }
+
+    public static void checkSVD(MatrixD B, MatrixD Q, MatrixD A_expected, double tolerance) {
+        checkSVD(B, Q, A_expected, tolerance, ABS_TOL_FACTOR);
+    }
+
+    /**
+     * As {@link #checkSVD(MatrixD, MatrixD, MatrixD, double)}, but with an
+     * explicit absolute tolerance floor.
+     *
+     * @param B
+     *            the factor {@code B} of the decomposition
+     * @param Q
+     *            the approximate basis
+     * @param A_expected
+     *            the matrix that was decomposed
+     * @param tolerance
+     *            the relative tolerance
+     * @param absTolFactor
+     *            the fraction of {@code ||A_expected||_F} to use as the
+     *            absolute floor
+     */
+    public static void checkSVD(MatrixD B, MatrixD Q, MatrixD A_expected, double tolerance,
+            double absTolFactor) {
+        MatrixD A_approx = null;
+        SvdD svdReduced = B.svd(true);
+
+        if (A_expected.numRows() >= A_expected.numColumns()) { // m >= n
+            // U
+            MatrixD U_lowrank = Q.times(svdReduced.getU());
+            MatrixD U_approx = Matrices.embed(A_expected.numRows(), A_expected.numColumns(), U_lowrank);
+            // Sigma
+            MatrixD tmp = Matrices.diagD(svdReduced.getS());
+            MatrixD Sigma = Matrices.embed(A_expected.numColumns(), A_expected.numColumns(), tmp);
+            // Vt
+            MatrixD Vt = svdReduced.getVt();
+            // A_approx
+            A_approx = U_approx.timesTimes(Sigma, Vt);
+        } else { // m < n
+            // U
+            MatrixD U_lowrank = svdReduced.getU();
+            MatrixD U_approx = Matrices.embed(A_expected.numRows(), A_expected.numColumns(), U_lowrank);
+            // Sigma
+            MatrixD tmp = Matrices.diagD(svdReduced.getS());
+            MatrixD Sigma = Matrices.embed(A_expected.numColumns(), A_expected.numColumns(), tmp);
+            // Vt
+            MatrixD Vt = svdReduced.getVt().times(Q.transpose());
+            Vt = Matrices.embed(A_expected.numColumns(), A_expected.numColumns(), Vt);
+            // A_approx
+            A_approx = U_approx.timesTimes(Sigma, Vt);
+        }
+
+        boolean equal = Matrices.approxEqual(A_approx, A_expected, tolerance,
+                absTol(A_expected, absTolFactor));
+        assertTrue("A and reconstruction of A should be approximately equal", equal);
+    }
+
+    public static void checkSVD2(MatrixD B, MatrixD Q, MatrixD A_expected, double tolerance) {
+        SvdD svdReduced = B.svd(true);
+
+        // U
+        MatrixD U_lowrank = Q.times(svdReduced.getU());
+        MatrixD U_approx = Matrices.embed(A_expected.numRows(), A_expected.numColumns(), U_lowrank);
+        // Sigma
+        MatrixD tmp = Matrices.diagD(svdReduced.getS());
+        MatrixD Sigma = Matrices.embed(A_expected.numColumns(), A_expected.numColumns(), tmp);
+        // Vt
+        MatrixD Vt = svdReduced.getVt();
+        // A_approx
+        MatrixD A_approx = U_approx.timesTimes(Sigma, Vt);
+
+        boolean equal = Matrices.approxEqual(A_approx, A_expected, tolerance, absTol(A_expected));
+        assertTrue("A and reconstruction of A should be approximately equal", equal);
+    }
+}

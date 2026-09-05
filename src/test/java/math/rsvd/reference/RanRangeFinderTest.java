@@ -13,12 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package randomizedSVD;
+package math.rsvd.reference;
+
+import static org.junit.Assert.assertTrue;
 
 import net.jamu.matrix.Matrices;
 import net.jamu.matrix.MatrixD;
 
 import org.junit.Test;
+
+import math.rsvd.Checks;
 
 public class RanRangeFinderTest {
 
@@ -32,7 +36,9 @@ public class RanRangeFinderTest {
         // this is really low rank
         int estimatedRank = 2;
         MatrixD A = Matrices.naturalNumbersD(m, n);
+        Checks.assertTall(A);
         MatrixD Q = getQ(A, estimatedRank);
+        Checks.assertOrthonormal(Q);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
         Checks.checkSVD(B, Q, A, TOLERANCE);
     }
@@ -42,7 +48,9 @@ public class RanRangeFinderTest {
         // this is really low rank
         int estimatedRank = 2;
         MatrixD A = Matrices.naturalNumbersD(n, m);
+        Checks.assertWide(A);
         MatrixD Q = getQ(A, estimatedRank);
+        Checks.assertOrthonormal(Q);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
         Checks.checkSVD(B, Q, A, TOLERANCE);
     }
@@ -52,7 +60,9 @@ public class RanRangeFinderTest {
         // high rank random noise
         int estimatedRank = Math.min(m, n);
         MatrixD A = Matrices.randomNormalD(m, n);
+        Checks.assertTall(A);
         MatrixD Q = getQ(A, estimatedRank);
+        Checks.assertOrthonormal(Q);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
         Checks.checkSVD(B, Q, A, TOLERANCE);
     }
@@ -62,7 +72,9 @@ public class RanRangeFinderTest {
         // high rank random noise
         int estimatedRank = Math.min(m, n);
         MatrixD A = Matrices.randomNormalD(n, m);
+        Checks.assertWide(A);
         MatrixD Q = getQ(A, estimatedRank);
+        Checks.assertOrthonormal(Q);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
         Checks.checkSVD(B, Q, A, TOLERANCE);
     }
@@ -72,7 +84,9 @@ public class RanRangeFinderTest {
         // high rank random noise
         int estimatedRank = Math.min(m, n);
         MatrixD A = Matrices.randomUniformD(m, n);
+        Checks.assertTall(A);
         MatrixD Q = getQ(A, estimatedRank);
+        Checks.assertOrthonormal(Q);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
         Checks.checkSVD(B, Q, A, TOLERANCE);
     }
@@ -82,9 +96,47 @@ public class RanRangeFinderTest {
         // high rank random noise
         int estimatedRank = Math.min(m, n);
         MatrixD A = Matrices.randomUniformD(n, m);
+        Checks.assertWide(A);
         MatrixD Q = getQ(A, estimatedRank);
+        Checks.assertOrthonormal(Q);
         MatrixD B = Checks.checkFactorization(Q, A, TOLERANCE);
         Checks.checkSVD(B, Q, A, TOLERANCE);
+    }
+
+    @Test
+    public void testNearlySquare() {
+        // the sketch width used to exceed the row count of Y here, which the QR
+        // cannot factor. The 220 x 150 shapes above are just far enough apart
+        // to hide that: 150 + 10 is still below 220
+        for (int[] shape : new int[][] { { 150, 145 }, { 145, 150 }, { 150, 150 } }) {
+            int rows = shape[0];
+            int cols = shape[1];
+            MatrixD A = Matrices.randomNormalD(rows, cols, rows + cols);
+            MatrixD Q = getQ(A, Math.min(rows, cols));
+            Checks.assertOrthonormal(Q);
+            assertTrue("Q has " + Q.numColumns() + " columns for a " + rows + "x" + cols + " matrix",
+                    Q.numColumns() <= Math.max(rows, cols));
+            Checks.checkFactorization(Q, A, TOLERANCE);
+        }
+    }
+
+    @Test
+    public void testEstimatedRankTooLarge() {
+        // a rank beyond min(rows, columns) cannot exist, so it is capped rather
+        // than allowed to blow up the sketch
+        MatrixD A = Matrices.randomNormalD(60, 40, 12L);
+        MatrixD Q = getQ(A, 1000);
+        Checks.assertOrthonormal(Q);
+        assertTrue("Q has " + Q.numColumns() + " columns", Q.numColumns() <= 60);
+        Checks.checkFactorization(Q, A, TOLERANCE);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testEstimatedRankZero() {
+        // a rank 0 subspace cannot be represented: jamu has no matrix with zero
+        // columns, so asking for it is a caller error rather than something to
+        // silently turn into a basis of P columns
+        new RanRangeFinder(Matrices.randomNormalD(60, 40, 1L), 0);
     }
 
     private MatrixD getQ(MatrixD A, int estimatedRank) {

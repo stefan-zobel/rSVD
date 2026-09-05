@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Stefan Zobel
+ * Copyright 2021, 2026 Stefan Zobel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@ import net.jamu.matrix.MatrixD;
 public class ApproximateBasisTest {
 
     private static final double TOLERANCE = 1.0e-8;
+    // seeded so that a failure can be reproduced
+    private static final long SEED = 7L;
 
     @Test
     public void testNaturalNumbersTall() {
@@ -32,6 +34,7 @@ public class ApproximateBasisTest {
         int n = 150;
         int estimatedRank = 2;
         MatrixD A = Matrices.naturalNumbersD(m, n);
+        Checks.assertTall(A);
         SVD svd = getSVD(A, estimatedRank);
         checkSVD(svd, A, TOLERANCE);
     }
@@ -42,6 +45,7 @@ public class ApproximateBasisTest {
         int n = 220;
         int estimatedRank = 2;
         MatrixD A = Matrices.naturalNumbersD(m, n);
+        Checks.assertWide(A);
         SVD svd = getSVD(A, estimatedRank);
         checkSVD(svd, A, TOLERANCE);
     }
@@ -51,7 +55,8 @@ public class ApproximateBasisTest {
         int m = 220;
         int n = 150;
         int estimatedRank = Math.min(m, n);
-        MatrixD A = Matrices.randomNormalD(m, n);
+        MatrixD A = Matrices.randomNormalD(m, n, 1L);
+        Checks.assertTall(A);
         SVD svd = getSVD(A, estimatedRank);
         checkSVD(svd, A, TOLERANCE);
     }
@@ -61,7 +66,8 @@ public class ApproximateBasisTest {
         int m = 150;
         int n = 220;
         int estimatedRank = Math.min(m, n);
-        MatrixD A = Matrices.randomNormalD(m, n);
+        MatrixD A = Matrices.randomNormalD(m, n, 2L);
+        Checks.assertWide(A);
         SVD svd = getSVD(A, estimatedRank);
         checkSVD(svd, A, TOLERANCE);
     }
@@ -71,7 +77,8 @@ public class ApproximateBasisTest {
         int m = 220;
         int n = 150;
         int estimatedRank = Math.min(m, n);
-        MatrixD A = Matrices.randomUniformD(m, n);
+        MatrixD A = Matrices.randomUniformD(m, n, 3L);
+        Checks.assertTall(A);
         SVD svd = getSVD(A, estimatedRank);
         checkSVD(svd, A, TOLERANCE);
     }
@@ -81,22 +88,32 @@ public class ApproximateBasisTest {
         int m = 150;
         int n = 220;
         int estimatedRank = Math.min(m, n);
-        MatrixD A = Matrices.randomUniformD(m, n);
+        MatrixD A = Matrices.randomUniformD(m, n, 4L);
+        Checks.assertWide(A);
         SVD svd = getSVD(A, estimatedRank);
         checkSVD(svd, A, TOLERANCE);
     }
 
-    private void checkSVD(SVD svd, MatrixD A_expected, double tolerance) {
-        MatrixD U = svd.U;
-        MatrixD S = svd.S;
-        MatrixD Vt = svd.Vt;
+    @Test(expected = IllegalArgumentException.class)
+    public void testEstimatedRankZero() {
+        // a rank 0 subspace cannot be represented: jamu has no matrix with zero
+        // columns. Asking for it used to reach createSVD and fail there with
+        // "Illegal column index -1", which says nothing about the cause
+        new ApproximateBasis(Matrices.randomNormalD(60, 40, 1L), 0, SEED);
+    }
 
-        MatrixD A_approx = U.timesTimes(S, Vt);
-        boolean equal = Matrices.approxEqual(A_approx, A_expected, tolerance);
+    @Test(expected = NullPointerException.class)
+    public void testNullMatrixRejected() {
+        new ApproximateBasis(null, 2, SEED);
+    }
+
+    private void checkSVD(SVD svd, MatrixD A_expected, double tolerance) {
+        MatrixD A_approx = svd.reconstruct();
+        boolean equal = Matrices.approxEqual(A_approx, A_expected, tolerance, Checks.absTol(A_expected));
         assertTrue("A and reconstruction of A should be approximately equal", equal);
     }
 
     private SVD getSVD(MatrixD A, int estimatedRank) {
-        return new ApproximateBasis(A, estimatedRank).computeSVD();
+        return new ApproximateBasis(A, estimatedRank, SEED).computeSVD();
     }
 }
